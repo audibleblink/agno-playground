@@ -3,23 +3,29 @@ from agno.agent import Agent
 from agno.team import Team
 from agno.models.ollama import Ollama
 from agno.models.anthropic import Claude
+from agno.models.azure import AzureOpenAI
 from agno.playground import Playground, serve_playground_app
 from agno.storage.sqlite import SqliteStorage
 from agno.tools.duckduckgo import DuckDuckGoTools
-from agno.tools.yfinance import YFinanceTools
 from agno.tools.hackernews import HackerNewsTools
 from agno.tools.newspaper4k import Newspaper4kTools
 from agno.tools.thinking import ThinkingTools
 
 from pydantic import BaseModel, Field
 from typing import List
-
-agent_storage: str = "tmp/agents.db"
+from dotenv import load_dotenv
+_ = load_dotenv()  # take environment variables
 
 o_api = os.getenv("OLLAMA_API_BASE", "localhost:11434")
+a_ver = os.getenv("AZURE_OPENAI_API_VERSION","2025-03-01-preview")
+agent_storage: str = "tmp/agents.db"
 
 ollama = Ollama(host=o_api, id="qwen3:agno")
+worker_model = ollama
+
 claude = Claude()
+azure = AzureOpenAI(id="o4-mini", api_version=a_ver)
+team_model = ollama
 
 class Article(BaseModel):
     title: str = Field(..., description="The Article's Title")
@@ -30,7 +36,7 @@ class Article(BaseModel):
 
 hn_researcher = Agent(
     name="HackerNews Researcher",
-    model=ollama,
+    model=worker_model,
     role="Gets top stories from hackernews.",
     tools=[HackerNewsTools(cache_results=True)],
     agent_id="hn_researcher",
@@ -40,7 +46,7 @@ hn_researcher = Agent(
 
 article_reader = Agent(
     name="Article Reader",
-    model=ollama,
+    model=worker_model,
     role="Reads and summarizes articles from URLs.",
     tools=[Newspaper4kTools(cache_results=True)],
     agent_id="article_reader",
@@ -52,7 +58,7 @@ article_reader = Agent(
 
 web_searcher = Agent(
     name="Web Enricher",
-    model=ollama,
+    model=worker_model,
     role="Searches the web for enrichment of a topic",
     tools=[DuckDuckGoTools(cache_results=True)],
     add_datetime_to_instructions=True,
@@ -65,7 +71,7 @@ web_searcher = Agent(
 hackernews_team = Team(
     name="HackerNews Team",
     mode="coordinate",
-    model=claude,
+    model=team_model,
     members=[hn_researcher, article_reader, web_searcher],
     instructions=[
         "ALWAYS follow ALL steps:",
