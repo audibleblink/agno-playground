@@ -4,12 +4,14 @@ from agno.team import Team
 from agno.models.ollama import Ollama
 from agno.models.anthropic import Claude
 from agno.models.azure import AzureOpenAI
-from agno.playground import Playground, serve_playground_app
 from agno.storage.sqlite import SqliteStorage
 from agno.tools.duckduckgo import DuckDuckGoTools
 from agno.tools.hackernews import HackerNewsTools
 from agno.tools.newspaper4k import Newspaper4kTools
 from agno.tools.thinking import ThinkingTools
+from agno import playground
+from agno.memory.v2.db.sqlite import SqliteMemoryDb
+from agno.memory.v2.memory import Memory
 
 from pydantic import BaseModel, Field
 from typing import List
@@ -18,7 +20,7 @@ _ = load_dotenv()  # take environment variables
 
 o_api = os.getenv("OLLAMA_API_BASE", "localhost:11434")
 a_ver = os.getenv("AZURE_OPENAI_API_VERSION","2025-03-01-preview")
-agent_storage: str = "tmp/agents.db"
+storage_db: str = "tmp/agents.db"
 
 ollama = Ollama(host=o_api, id="qwen3:agno")
 worker_model = ollama
@@ -27,10 +29,13 @@ claude = Claude()
 azure = AzureOpenAI(id="o4-mini", api_version=a_ver)
 team_model = ollama
 
+# Create a memory instance with persistent storage
+memory_db = SqliteMemoryDb(table_name="memory", db_file=storage_db)
+
 class Article(BaseModel):
     title: str = Field(..., description="The Article's Title")
     summary: str = Field(..., description="A summary of the article")
-    reference_links: list[str]
+    reference_links: list[str] = Field(..., description="A list of links")
 
 ##################################
 
@@ -40,7 +45,8 @@ hn_researcher = Agent(
     role="Gets top stories from hackernews.",
     tools=[HackerNewsTools(cache_results=True)],
     agent_id="hn_researcher",
-    storage=SqliteStorage(table_name="hn_researcher", db_file=agent_storage),
+    storage=SqliteStorage(table_name="hn_researcher", db_file=storage_db),
+    memory = Memory(db=memory_db),
     expected_output="a list of articles"
 )
 
@@ -50,7 +56,8 @@ article_reader = Agent(
     role="Reads and summarizes articles from URLs.",
     tools=[Newspaper4kTools(cache_results=True)],
     agent_id="article_reader",
-    storage=SqliteStorage(table_name="article_reader", db_file=agent_storage),
+    storage=SqliteStorage(table_name="article_reader", db_file=storage_db),
+    memory = Memory(db=memory_db),
     add_state_in_messages=True,
     add_history_to_messages=True,
     # response_model=Article,
@@ -64,7 +71,8 @@ web_searcher = Agent(
     add_datetime_to_instructions=True,
     agent_id="web_searcher",
     add_state_in_messages=True,
-    storage=SqliteStorage(table_name="web_searcher", db_file=agent_storage),
+    storage=SqliteStorage(table_name="web_searcher", db_file=storage_db),
+    memory = Memory(db=memory_db),
     add_history_to_messages=True,
 )
 
@@ -72,7 +80,6 @@ hackernews_team = Team(
     name="HackerNews Team",
     mode="coordinate",
     model=team_model,
-    members=[hn_researcher, article_reader, web_searcher],
     instructions=[
         "ALWAYS follow ALL steps:",
         "First, search hackernews for what the user is asking about.",
@@ -80,10 +87,7 @@ hackernews_team = Team(
         "Third, transfer the returned links to the web searcher agent to enrich each story with more information.",
         "Finally, provide a thoughtful and engaging summary.",
     ],
-    show_tool_calls=True,
-    markdown=True,
-    debug_mode=True,
-    show_members_responses=True,
+
     success_criteria="""
     A report of the user's request containing a title, summary from the reader agent, additional details from the enrichment agent (with citations), , and reference links to the original URLs. Use this template:
     # Report
@@ -99,20 +103,27 @@ hackernews_team = Team(
     ...
     """,
 
-    storage=SqliteStorage(table_name="hn_team", db_file=agent_storage),
+    members=[hn_researcher, article_reader, web_searcher],
     add_member_tools_to_system_message=False,
+    debug_mode=True,
+    enable_agentic_context=True,    # send previous replies to agents
+    enable_team_history=True,       # for things like 'pick the second choice' after being given options
+    markdown=True,
+    memory = Memory(db=memory_db),  
+    show_members_responses=True,
+    show_tool_calls=True,
+    storage=SqliteStorage(table_name="hn_team", db_file=storage_db),
+    telemetry=False,
     tools=[ThinkingTools(add_instructions=True)],
-    enable_agentic_context=True,
+    # enable_agentic_memory=True,   # user memories
     # reasoning=True,
-    # enable_team_history=True,
     # response_model=Article,
     # use_json_mode=True,
 )
 
 ##################################
 
-app = Playground(teams=[hackernews_team]).get_app()
-
+app = playground.Playground(teams=[hackernews_team]).get_app()
 if __name__ == "__main__":
-    serve_playground_app("playground:app", reload=True)
+    playground.serve_playground_app("playground:app", reload=True)
 
