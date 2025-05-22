@@ -8,6 +8,7 @@ from agno.storage.sqlite import SqliteStorage
 from agno.tools.duckduckgo import DuckDuckGoTools
 from agno.tools.hackernews import HackerNewsTools
 from agno.tools.newspaper4k import Newspaper4kTools
+from agno.tools.reddit import RedditTools
 from agno.tools.thinking import ThinkingTools
 from agno import playground
 from agno.memory.v2.db.sqlite import SqliteMemoryDb
@@ -73,6 +74,16 @@ web_searcher = Agent(
     add_state_in_messages=True,
     storage=SqliteStorage(table_name="web_searcher", db_file=storage_db),
     memory = Memory(db=memory_db),
+reddit_researcher = Agent(
+    name="Reddit Cross-Referencer",
+    model=worker_model,
+    role="Searches Reddit for discussions and opinions related to news stories",
+    instructions="Search Reddit for relevant discussions about the given topics. Focus on finding community reactions, different perspectives, and additional context from Reddit discussions.",
+    tools=[RedditTools(cache_results=True)],
+    agent_id="reddit_researcher",
+    storage=SqliteStorage(table_name="reddit_researcher", db_file=storage_db),
+    memory=Memory(db=memory_db),
+    add_state_in_messages=True,
     add_history_to_messages=True,
 )
 
@@ -85,6 +96,7 @@ hackernews_team = Team(
         "First, search hackernews for what the user is asking about.",
         "Second, tranfer the returned links to the article reader agent to read each HackerNews link for the stories to get more information.",
         "Third, transfer the returned links to the web searcher agent to enrich each story with more information.",
+        "Fourth, transfer the topics to the reddit researcher agent to find related Reddit discussions and community perspectives",
         "Finally, provide a thoughtful and engaging summary.",
     ],
 
@@ -97,6 +109,8 @@ hackernews_team = Team(
     ### Additional Details
     {{enriched data}}
     {{web_searcher citations}}
+    ### Reddit Community Perspectives
+    {{reddit discussions and reactions}}
     ### References
     {{links}}
     ## {{Article 2 Title}}
