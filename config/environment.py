@@ -13,5 +13,5 @@ OLLAMA_API_BASE = os.getenv("OLLAMA_API_BASE", "localhost:11434")
 AZURE_API_VERSION = os.getenv("AZURE_OPENAI_API_VERSION", "2025-03-01-preview")
 
 # Storage configuration
-STORAGE_DB = "tmp/agents.db"
-VECTOR_DB_URI = "tmp/lancedb"
+STORAGE_DB = "storage/db/agents.db"
+VECTOR_DB_URI = "storage/db/lancedb"

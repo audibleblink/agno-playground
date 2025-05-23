@@ -4,7 +4,7 @@ from models import worker_model
 from storage.config import get_storage, get_memory
 
 
-hn_researcher = Agent(
+HackerNewsResearcher = Agent(
     name="HackerNews Researcher",
     model=worker_model,
     role="Gets top stories from hackernews.",

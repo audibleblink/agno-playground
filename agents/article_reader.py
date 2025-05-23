@@ -9,7 +9,7 @@ class Article(BaseModel):
     summary: str = Field(..., description="A summary of the article")
     reference_links: list[str] = Field(..., description="A list of links")
 
-article_reader = Agent(
+ArticleReader = Agent(
     name="Article Reader",
     model=worker_model,
     role="Reads and summarizes articles from URLs.",

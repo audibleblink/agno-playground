@@ -1,9 +1,10 @@
 from agno import playground
-from teams import HackerNews
+from teams import HackerNewsTeam, ResearchTeam
 
 app = playground.Playground(
     teams=[
-        HackerNews,
+        HackerNewsTeam,
+        ResearchTeam,
     ],
 ).get_app()
 

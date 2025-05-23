@@ -3,7 +3,8 @@ import { persist, createJSONStorage } from 'zustand/middleware'
 
 import {
   type PlaygroundChatMessage,
-  type SessionEntry
+  type SessionEntry,
+  type ToolCall
 } from '@/types/playground'
 
 interface Agent {
@@ -51,6 +52,12 @@ interface PlaygroundStore {
     messages:
       | PlaygroundChatMessage[]
       | ((prevMessages: PlaygroundChatMessage[]) => PlaygroundChatMessage[])
+  ) => void
+  activeToolCalls: Record<string, ToolCall>
+  setActiveToolCalls: (
+    activeToolCalls:
+      | Record<string, ToolCall>
+      | ((prevToolCalls: Record<string, ToolCall>) => Record<string, ToolCall>)
   ) => void
   hasStorage: boolean
   setHasStorage: (hasStorage: boolean) => void
@@ -100,6 +107,14 @@ export const usePlaygroundStore = create<PlaygroundStore>()(
         set((state) => ({
           messages:
             typeof messages === 'function' ? messages(state.messages) : messages
+        })),
+      activeToolCalls: {},
+      setActiveToolCalls: (activeToolCalls) =>
+        set((state) => ({
+          activeToolCalls:
+            typeof activeToolCalls === 'function'
+              ? activeToolCalls(state.activeToolCalls)
+              : activeToolCalls
         })),
       hasStorage: false,
       setHasStorage: (hasStorage) => set(() => ({ hasStorage })),

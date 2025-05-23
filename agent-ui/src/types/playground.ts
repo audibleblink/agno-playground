@@ -21,7 +21,7 @@ export interface ReasoningSteps {
 }
 export interface ReasoningStepProps {
   index: number
-  stepTitle: string
+  step: ReasoningSteps
 }
 export interface ReasoningProps {
   reasoning: ReasoningSteps[]

@@ -27,6 +27,7 @@ const useAIChatStreamHandler = () => {
   const setIsStreaming = usePlaygroundStore((state) => state.setIsStreaming)
   const setSessionsData = usePlaygroundStore((state) => state.setSessionsData)
   const hasStorage = usePlaygroundStore((state) => state.hasStorage)
+  const setActiveToolCalls = usePlaygroundStore((state) => state.setActiveToolCalls)
   const { streamResponse } = useAIResponseStream()
 
   const updateMessagesWithErrorState = useCallback(() => {
@@ -104,6 +105,9 @@ const useAIChatStreamHandler = () => {
         formData.append('stream', 'true')
         formData.append('session_id', sessionId ?? '')
 
+        // Clear active tool calls when starting a new request
+        setActiveToolCalls({})
+
         await streamResponse({
           apiUrl: playgroundRunUrl,
           requestBody: formData,
@@ -133,6 +137,82 @@ const useAIChatStreamHandler = () => {
                   }
                   return [sessionData, ...(prevSessionsData ?? [])]
                 })
+              }
+            } else if (chunk.event === RunEvent.ToolCallStarted) {
+              // Handle tool call started event
+              if (chunk.event_data && typeof chunk.event_data === 'object') {
+                const toolData = chunk.event_data as {
+                  tool_name?: string;
+                  tool_call_id?: string;
+                  tool_args?: Record<string, string>;
+                };
+
+                if (toolData.tool_name && toolData.tool_call_id) {
+                  const newToolCall: ToolCall = {
+                    role: 'tool',
+                    content: null,
+                    tool_call_id: toolData.tool_call_id,
+                    tool_name: toolData.tool_name,
+                    tool_args: toolData.tool_args || {},
+                    tool_call_error: false,
+                    metrics: { time: 0 },
+                    created_at: chunk.created_at
+                  };
+
+                  setActiveToolCalls(prev => ({
+                    ...prev,
+                    [toolData.tool_call_id]: newToolCall
+                  }));
+                }
+              }
+            } else if (chunk.event === RunEvent.ToolCallCompleted) {
+              // Handle tool call completed event
+              if (chunk.event_data && typeof chunk.event_data === 'object') {
+                const toolData = chunk.event_data as {
+                  tool_call_id?: string;
+                  content?: string | null;
+                  error?: boolean;
+                  time?: number;
+                };
+
+                if (toolData.tool_call_id) {
+                  // Remove from active tool calls
+                  setActiveToolCalls(prev => {
+                    const newActiveCalls = { ...prev };
+                    delete newActiveCalls[toolData.tool_call_id!];
+                    return newActiveCalls;
+                  });
+
+                  // Add to completed tool calls in the message
+                  setMessages((prevMessages) => {
+                    const newMessages = [...prevMessages];
+                    const lastMessage = newMessages[newMessages.length - 1];
+
+                    if (lastMessage && lastMessage.role === 'agent') {
+                      // Find the tool call in active calls to get its details
+                      const toolCalls = [...(lastMessage.tool_calls || [])];
+
+                      // Add the completed tool call
+                      const completedToolCall: ToolCall = {
+                        role: 'tool',
+                        content: toolData.content || null,
+                        tool_call_id: toolData.tool_call_id!,
+                        tool_name: prev[toolData.tool_call_id!]?.tool_name || 'unknown',
+                        tool_args: prev[toolData.tool_call_id!]?.tool_args || {},
+                        tool_call_error: toolData.error || false,
+                        metrics: {
+                          time: toolData.time || 0
+                        },
+                        created_at: chunk.created_at
+                      };
+
+                      toolCalls.push(completedToolCall);
+                      lastMessage.tool_calls = toolCalls;
+                    }
+
+                    return newMessages;
+                  });
+                }
               }
             } else if (chunk.event === RunEvent.RunResponse) {
               setMessages((prevMessages) => {
@@ -200,6 +280,9 @@ const useAIChatStreamHandler = () => {
                 return newMessages
               })
             } else if (chunk.event === RunEvent.RunError) {
+              // Clear active tool calls on error
+              setActiveToolCalls({});
+
               updateMessagesWithErrorState()
               const errorContent = chunk.content as string
               setStreamingErrorMessage(errorContent)
@@ -212,6 +295,9 @@ const useAIChatStreamHandler = () => {
                 )
               }
             } else if (chunk.event === RunEvent.RunCompleted) {
+              // Clear active tool calls on completion
+              setActiveToolCalls({});
+
               setMessages((prevMessages) => {
                 const newMessages = prevMessages.map((message, index) => {
                   if (
@@ -256,6 +342,9 @@ const useAIChatStreamHandler = () => {
             }
           },
           onError: (error) => {
+            // Clear active tool calls on error
+            setActiveToolCalls({});
+
             updateMessagesWithErrorState()
             setStreamingErrorMessage(error.message)
             if (hasStorage && newSessionId) {
@@ -270,6 +359,9 @@ const useAIChatStreamHandler = () => {
           onComplete: () => {}
         })
       } catch (error) {
+        // Clear active tool calls on error
+        setActiveToolCalls({});
+
         updateMessagesWithErrorState()
         setStreamingErrorMessage(
           error instanceof Error ? error.message : String(error)
@@ -302,7 +394,8 @@ const useAIChatStreamHandler = () => {
       setSessionsData,
       sessionId,
       setSessionId,
-      hasStorage
+      hasStorage,
+      setActiveToolCalls
     ]
   )
 

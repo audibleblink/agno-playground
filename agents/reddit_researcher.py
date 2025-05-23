@@ -4,7 +4,7 @@ from models import worker_model
 from storage.config import get_storage, get_memory
 
 
-reddit_researcher = Agent(
+RedditResearcher = Agent(
     name="Reddit Cross-Referencer",
     model=worker_model,
     role="Searches Reddit for discussions and opinions related to news stories",
