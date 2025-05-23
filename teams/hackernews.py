@@ -16,10 +16,10 @@ HackerNewsTeam = Team(
     model=team_model,
     instructions=[
         "ALWAYS follow ALL steps:",
-        "First, search hackernews for what the user is asking about.",
-        "Second, tranfer the returned links to the article reader agent to read each HackerNews link for the stories to get more information.",
-        "Third, transfer the returned links to the research team to enrich each story with more information",
-        "Finally, provide a thoughtful and engaging summary.",
+        "1. search hackernews for what the user is asking about.",
+        "2. tranfer the returned links to the article reader agent to read each HackerNews link for the stories to get more information.",
+        "3. transfer the returned links to the research team to enrich each story with more information",
+        "4. provide a thoughtful and engaging summary.",
     ],
     success_criteria="""
     A report of the user's request containing a title, summary from the reader agent, additional details from the enrichment agent (with citations), Reddit community perspectives, and reference links to the original URLs. Use this template:

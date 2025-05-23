@@ -42,7 +42,7 @@ const useAIChatStreamHandler = () => {
   }, [setMessages])
 
   const handleStreamResponse = useCallback(
-    async (input: string | FormData) => {
+    async (input: string | FormData, stream: boolean = true) => {
       setIsStreaming(true)
 
       const formData = input instanceof FormData ? input : new FormData()
@@ -102,7 +102,7 @@ const useAIChatStreamHandler = () => {
           return
         }
 
-        formData.append('stream', 'true')
+        formData.append('stream', stream.toString())
         formData.append('session_id', sessionId ?? '')
 
         // Clear active tool calls when starting a new request

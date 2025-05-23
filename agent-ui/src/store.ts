@@ -43,6 +43,8 @@ interface PlaygroundStore {
   ) => void
   isStreaming: boolean
   setIsStreaming: (isStreaming: boolean) => void
+  streamingEnabled: boolean
+  setStreamingEnabled: (streamingEnabled: boolean) => void
   isEndpointActive: boolean
   setIsEndpointActive: (isActive: boolean) => void
   isEndpointLoading: boolean
@@ -96,6 +98,8 @@ export const usePlaygroundStore = create<PlaygroundStore>()(
       setEndpoints: (endpoints) => set(() => ({ endpoints })),
       isStreaming: false,
       setIsStreaming: (isStreaming) => set(() => ({ isStreaming })),
+      streamingEnabled: true,
+      setStreamingEnabled: (streamingEnabled) => set(() => ({ streamingEnabled })),
       isEndpointActive: false,
       setIsEndpointActive: (isActive) =>
         set(() => ({ isEndpointActive: isActive })),
@@ -148,7 +152,8 @@ export const usePlaygroundStore = create<PlaygroundStore>()(
       name: 'endpoint-storage',
       storage: createJSONStorage(() => localStorage),
       partialize: (state) => ({
-        selectedEndpoint: state.selectedEndpoint
+        selectedEndpoint: state.selectedEndpoint,
+        streamingEnabled: state.streamingEnabled
       }),
       onRehydrateStorage: () => (state) => {
         state?.setHydrated?.()

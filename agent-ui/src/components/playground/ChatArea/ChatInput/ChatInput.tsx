@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { toast } from 'sonner'
 import { TextArea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
+import { Toggle } from '@/components/ui/toggle'
 import { usePlaygroundStore } from '@/store'
 import useAIChatStreamHandler from '@/hooks/useAIStreamHandler'
 import { useQueryState } from 'nuqs'
@@ -16,6 +17,8 @@ const ChatInput = () => {
   const [teamId] = useQueryState('team')
   const [inputMessage, setInputMessage] = useState('')
   const isStreaming = usePlaygroundStore((state) => state.isStreaming)
+  const streamingEnabled = usePlaygroundStore((state) => state.streamingEnabled)
+  const setStreamingEnabled = usePlaygroundStore((state) => state.setStreamingEnabled)
   const handleSubmit = async () => {
     if (!inputMessage.trim()) return
 
@@ -23,7 +26,7 @@ const ChatInput = () => {
     setInputMessage('')
 
     try {
-      await handleStreamResponse(currentMessage)
+      await handleStreamResponse(currentMessage, streamingEnabled)
     } catch (error) {
       toast.error(
         `Error in handleSubmit: ${
@@ -54,6 +57,17 @@ const ChatInput = () => {
         disabled={!(selectedAgent || teamId)}
         ref={chatInputRef}
       />
+      <div className="flex flex-col items-center gap-1 self-end">
+        <span className="text-xs text-muted-foreground font-dmmono">
+          Stream
+        </span>
+        <Toggle
+          checked={streamingEnabled}
+          onCheckedChange={setStreamingEnabled}
+          disabled={isStreaming}
+          label={streamingEnabled ? 'Streaming enabled' : 'Streaming disabled'}
+        />
+      </div>
       <Button
         onClick={handleSubmit}
         disabled={!(selectedAgent || teamId) || !inputMessage.trim() || isStreaming}
