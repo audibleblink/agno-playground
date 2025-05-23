@@ -10,7 +10,8 @@ wheels/
 .venv
 .python-version
 
-agent-ui/
+# agent-ui/
+node_modules
 tmp/
 .env
 storage/db
