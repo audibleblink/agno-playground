@@ -118,6 +118,25 @@ export const getPlaygroundTeamsAPI = async (
   }
 }
 
+export const getPlaygroundTeamAPI = async (
+  endpoint: string,
+  teamId: string
+): Promise<Team | null> => {
+  const url = APIRoutes.GetPlaygroundTeam(endpoint, teamId)
+  try {
+    const response = await fetch(url, { method: 'GET' })
+    if (!response.ok) {
+      toast.error(`Failed to fetch team details: ${response.statusText}`)
+      return null
+    }
+    const data = await response.json()
+    return data
+  } catch {
+    toast.error('Error fetching team details')
+    return null
+  }
+}
+
 export const getPlaygroundTeamSessionsAPI = async (
   base: string,
   teamId: string

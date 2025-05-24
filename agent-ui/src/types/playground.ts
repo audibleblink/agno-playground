@@ -69,12 +69,21 @@ export interface Agent {
   storage?: boolean
 }
 
+export interface TeamMember {
+  agent_id?: string
+  team_id?: string
+  name: string
+  model: Model
+  members?: TeamMember[]
+}
+
 export interface Team{
   team_id: string
   name: string
   description: string
   model: Model
   storage?: boolean
+  members?: TeamMember[]
 }
 
 interface MessageContext {

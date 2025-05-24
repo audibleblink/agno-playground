@@ -14,6 +14,7 @@ import { useQueryState } from 'nuqs'
 import { truncateText } from '@/lib/utils'
 import { Skeleton } from '@/components/ui/skeleton'
 import { TeamSelector } from './TeamSelector'
+import { TeamMembers } from './TeamMembers'
 
 const ENDPOINT_PLACEHOLDER = 'NO ENDPOINT ADDED'
 const SidebarHeader = () => (
@@ -299,6 +300,7 @@ const Sidebar = () => {
                       {selectedModel && (agentId || teamId) && (
                         <ModelDisplay model={selectedModel} />
                       )}
+                      {teamId && <TeamMembers />}
                     </>
                   )}
                 </motion.div>

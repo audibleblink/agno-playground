@@ -23,6 +23,8 @@ export const APIRoutes = {
 
   GetPlayGroundTeams: (PlaygroundApiUrl: string) =>
     `${PlaygroundApiUrl}/v1/playground/teams`,
+  GetPlaygroundTeam: (PlaygroundApiUrl: string, teamId: string) =>
+    `${PlaygroundApiUrl}/v1/playground/teams/${teamId}`,
   TeamRun: (PlaygroundApiUrl: string, teamId: string) =>
     `${PlaygroundApiUrl}/v1/playground/teams/${teamId}/runs`,
   GetPlaygroundTeamSessions: (PlaygroundApiUrl: string, teamId: string) =>

@@ -4,7 +4,9 @@ import { persist, createJSONStorage } from 'zustand/middleware'
 import {
   type PlaygroundChatMessage,
   type SessionEntry,
-  type ToolCall
+  type ToolCall,
+  type Team,
+  type TeamMember
 } from '@/types/playground'
 
 interface Agent {
@@ -76,6 +78,8 @@ interface PlaygroundStore {
   setSelectedTeamId: (teamId: string | null) => void
   selectedEntityType: 'agent' | 'team' | null
   setSelectedEntityType: (type: 'agent' | 'team' | null) => void
+  selectedTeamDetails: Team | null
+  setSelectedTeamDetails: (team: Team | null) => void
   sessionsData: SessionEntry[] | null
   setSessionsData: (
     sessionsData:
@@ -136,6 +140,8 @@ export const usePlaygroundStore = create<PlaygroundStore>()(
       setSelectedTeamId: (teamId) => set(() => ({ selectedTeamId: teamId })),
       selectedEntityType: null,
       setSelectedEntityType: (type) => set(() => ({ selectedEntityType: type })),
+      selectedTeamDetails: null,
+      setSelectedTeamDetails: (team) => set(() => ({ selectedTeamDetails: team })),
       sessionsData: null,
       setSessionsData: (sessionsData) =>
         set((state) => ({
