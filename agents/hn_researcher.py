@@ -13,4 +13,6 @@ HackerNewsResearcher = Agent(
     storage=get_storage("hn_researcher"),
     memory=get_memory(),
     expected_output="a list of articles",
+    stream_intermediate_steps=True,
+    stream=True
 )

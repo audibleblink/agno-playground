@@ -4,7 +4,6 @@ from models import team_model
 from storage.config import get_storage, get_memory
 from agents import HackerNewsResearcher, ArticleReader
 
-# We'll use a function to get the ResearchTeam to avoid circular imports
 def _get_research_team():
     from teams import ResearchTeam
     return ResearchTeam

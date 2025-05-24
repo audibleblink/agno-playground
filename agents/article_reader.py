@@ -19,5 +19,7 @@ ArticleReader = Agent(
     memory=get_memory(),
     add_state_in_messages=True,
     add_history_to_messages=True,
+    stream_intermediate_steps=True,
+    stream=True
     # response_model=Article,
 )

@@ -15,4 +15,6 @@ WebSearcher = Agent(
     storage=get_storage("web_searcher"),
     memory=get_memory(),
     add_history_to_messages=True,
+    stream_intermediate_steps=True,
+    stream=True
 )

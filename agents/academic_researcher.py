@@ -15,4 +15,6 @@ AcademicResearcher = Agent(
     memory=get_memory(),
     add_history_to_messages=True,
     knowledge=arxiv_knowledge_base,
+    stream_intermediate_steps=True,
+    stream=True
 )
