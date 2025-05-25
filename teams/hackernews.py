@@ -1,6 +1,6 @@
 from agno.team import Team
 from agno.tools.thinking import ThinkingTools
-from models import team_model
+from models import team_model, reasoning
 from storage.config import get_storage, get_memory
 from agents import HackerNewsResearcher, ArticleReader
 
@@ -13,6 +13,7 @@ HackerNewsTeam = Team(
     name="HackerNews Team",
     mode="coordinate",
     model=team_model,
+    team_id="research_team",
     instructions=[
         "ALWAYS follow ALL steps:",
         "1. search hackernews for what the user is asking about.",
@@ -37,7 +38,9 @@ HackerNewsTeam = Team(
     add_member_tools_to_system_message=False,
     debug_mode=True,
     enable_agentic_context=True,
+    enable_agentic_memory=True,
     enable_team_history=True,
+    read_team_history=True,
     markdown=True,
     memory=get_memory(),
     show_members_responses=True,
@@ -46,4 +49,6 @@ HackerNewsTeam = Team(
     telemetry=False,
     monitoring=False,
     tools=[ThinkingTools(add_instructions=True)],
+    reasoning=True,
+    reasoning_model=reasoning
 )

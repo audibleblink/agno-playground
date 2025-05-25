@@ -7,6 +7,7 @@ from agents import WebSearcher, RedditResearcher, AcademicResearcher
 
 ResearchTeam = Team(
     name="Research Team",
+    team_id="research_team",
     mode="collaborate",
     model=team_model,
     members=[WebSearcher, RedditResearcher, AcademicResearcher],
@@ -19,7 +20,7 @@ ResearchTeam = Team(
     show_members_responses=True,
     show_tool_calls=True,
     storage=get_storage("research_team"),
-    telemetry=False,
-    monitoring=False,
-    tools=[ReasoningTools(add_instructions=True)],
+    # telemetry=False,
+    # monitoring=False,
+    # tools=[ReasoningTools(add_instructions=True)],
 )
