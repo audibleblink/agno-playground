@@ -13,7 +13,7 @@ HackerNewsTeam = Team(
     name="HackerNews Team",
     mode="coordinate",
     model=team_model,
-    team_id="research_team",
+    team_id="hn_team",
     instructions=[
         "ALWAYS follow ALL steps:",
         "1. search hackernews for what the user is asking about.",

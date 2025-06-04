@@ -77,7 +77,7 @@ export interface TeamMember {
   members?: TeamMember[]
 }
 
-export interface Team{
+export interface Team {
   team_id: string
   name: string
   description: string
@@ -184,7 +184,7 @@ export interface ComboboxAgent {
 export interface ComboboxTeam {
   value: string
   label: string
-  model:{
+  model: {
     provider: string
   }
   storage?: boolean

@@ -5,8 +5,8 @@ import {
   type PlaygroundChatMessage,
   type SessionEntry,
   type ToolCall,
-  type Team,
-  type TeamMember
+  type Team as TeamDetails,
+  type ComboboxTeam
 } from '@/types/playground'
 
 interface Agent {
@@ -17,16 +17,6 @@ interface Agent {
   }
   storage?: boolean
 }
-
-export interface Team{
-  value: string
-  label: string
-  model: {
-    provider: string
-  }
-  storage?: boolean
-}
-
 
 interface PlaygroundStore {
   hydrated: boolean
@@ -70,16 +60,16 @@ interface PlaygroundStore {
   setSelectedEndpoint: (selectedEndpoint: string) => void
   agents: Agent[]
   setAgents: (agents: Agent[]) => void
-  teams: Team[]
-  setTeams: (teams: Team[]) => void
+  teams: ComboboxTeam[]
+  setTeams: (teams: ComboboxTeam[]) => void
   selectedModel: string
   setSelectedModel: (model: string) => void
   selectedTeamId: string | null
   setSelectedTeamId: (teamId: string | null) => void
   selectedEntityType: 'agent' | 'team' | null
   setSelectedEntityType: (type: 'agent' | 'team' | null) => void
-  selectedTeamDetails: Team | null
-  setSelectedTeamDetails: (team: Team | null) => void
+  selectedTeamDetails: TeamDetails | null
+  setSelectedTeamDetails: (team: TeamDetails | null) => void
   sessionsData: SessionEntry[] | null
   setSessionsData: (
     sessionsData:
@@ -103,7 +93,8 @@ export const usePlaygroundStore = create<PlaygroundStore>()(
       isStreaming: false,
       setIsStreaming: (isStreaming) => set(() => ({ isStreaming })),
       streamingEnabled: true,
-      setStreamingEnabled: (streamingEnabled) => set(() => ({ streamingEnabled })),
+      setStreamingEnabled: (streamingEnabled) =>
+        set(() => ({ streamingEnabled })),
       isEndpointActive: false,
       setIsEndpointActive: (isActive) =>
         set(() => ({ isEndpointActive: isActive })),
@@ -133,15 +124,17 @@ export const usePlaygroundStore = create<PlaygroundStore>()(
       agents: [],
       setAgents: (agents) => set({ agents }),
       teams: [],
-      setTeams: (teams) => set(({ teams })),
+      setTeams: (teams) => set({ teams }),
       selectedModel: '',
       setSelectedModel: (selectedModel) => set(() => ({ selectedModel })),
       selectedTeamId: null,
       setSelectedTeamId: (teamId) => set(() => ({ selectedTeamId: teamId })),
       selectedEntityType: null,
-      setSelectedEntityType: (type) => set(() => ({ selectedEntityType: type })),
+      setSelectedEntityType: (type) =>
+        set(() => ({ selectedEntityType: type })),
       selectedTeamDetails: null,
-      setSelectedTeamDetails: (team) => set(() => ({ selectedTeamDetails: team })),
+      setSelectedTeamDetails: (team) =>
+        set(() => ({ selectedTeamDetails: team })),
       sessionsData: null,
       setSessionsData: (sessionsData) =>
         set((state) => ({

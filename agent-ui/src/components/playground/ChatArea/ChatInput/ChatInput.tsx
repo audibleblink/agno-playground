@@ -18,7 +18,9 @@ const ChatInput = () => {
   const [inputMessage, setInputMessage] = useState('')
   const isStreaming = usePlaygroundStore((state) => state.isStreaming)
   const streamingEnabled = usePlaygroundStore((state) => state.streamingEnabled)
-  const setStreamingEnabled = usePlaygroundStore((state) => state.setStreamingEnabled)
+  const setStreamingEnabled = usePlaygroundStore(
+    (state) => state.setStreamingEnabled
+  )
   const handleSubmit = async () => {
     if (!inputMessage.trim()) return
 
@@ -58,7 +60,7 @@ const ChatInput = () => {
         ref={chatInputRef}
       />
       <div className="flex flex-col items-center gap-1 self-end">
-        <span className="text-xs text-muted-foreground font-dmmono">
+        <span className="text-muted-foreground font-dmmono text-xs">
           Stream
         </span>
         <Toggle
@@ -70,7 +72,9 @@ const ChatInput = () => {
       </div>
       <Button
         onClick={handleSubmit}
-        disabled={!(selectedAgent || teamId) || !inputMessage.trim() || isStreaming}
+        disabled={
+          !(selectedAgent || teamId) || !inputMessage.trim() || isStreaming
+        }
         size="icon"
         className="rounded-xl bg-primary p-5 text-primaryAccent"
       >

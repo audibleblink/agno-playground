@@ -27,7 +27,10 @@ const useAIChatStreamHandler = () => {
   const setIsStreaming = usePlaygroundStore((state) => state.setIsStreaming)
   const setSessionsData = usePlaygroundStore((state) => state.setSessionsData)
   const hasStorage = usePlaygroundStore((state) => state.hasStorage)
-  const setActiveToolCalls = usePlaygroundStore((state) => state.setActiveToolCalls)
+  const activeToolCalls = usePlaygroundStore((state) => state.activeToolCalls)
+  const setActiveToolCalls = usePlaygroundStore(
+    (state) => state.setActiveToolCalls
+  )
   const { streamResponse } = useAIResponseStream()
 
   const updateMessagesWithErrorState = useCallback(() => {
@@ -142,10 +145,10 @@ const useAIChatStreamHandler = () => {
               // Handle tool call started event
               if (chunk.event_data && typeof chunk.event_data === 'object') {
                 const toolData = chunk.event_data as {
-                  tool_name?: string;
-                  tool_call_id?: string;
-                  tool_args?: Record<string, string>;
-                };
+                  tool_name?: string
+                  tool_call_id?: string
+                  tool_args?: Record<string, string>
+                }
 
                 if (toolData.tool_name && toolData.tool_call_id) {
                   const newToolCall: ToolCall = {
@@ -157,61 +160,64 @@ const useAIChatStreamHandler = () => {
                     tool_call_error: false,
                     metrics: { time: 0 },
                     created_at: chunk.created_at
-                  };
+                  }
 
-                  setActiveToolCalls(prev => ({
+                  setActiveToolCalls((prev) => ({
                     ...prev,
-                    [toolData.tool_call_id]: newToolCall
-                  }));
+                    [toolData.tool_call_id!]: newToolCall
+                  }))
                 }
               }
             } else if (chunk.event === RunEvent.ToolCallCompleted) {
               // Handle tool call completed event
               if (chunk.event_data && typeof chunk.event_data === 'object') {
                 const toolData = chunk.event_data as {
-                  tool_call_id?: string;
-                  content?: string | null;
-                  error?: boolean;
-                  time?: number;
-                };
+                  tool_call_id?: string
+                  content?: string | null
+                  error?: boolean
+                  time?: number
+                }
 
                 if (toolData.tool_call_id) {
+                  // Get tool details before removing from active calls
+                  const activeToolCall = activeToolCalls[toolData.tool_call_id]
+
                   // Remove from active tool calls
-                  setActiveToolCalls(prev => {
-                    const newActiveCalls = { ...prev };
-                    delete newActiveCalls[toolData.tool_call_id!];
-                    return newActiveCalls;
-                  });
+                  setActiveToolCalls((prev) => {
+                    const newActiveCalls = { ...prev }
+                    delete newActiveCalls[toolData.tool_call_id!]
+                    return newActiveCalls
+                  })
 
                   // Add to completed tool calls in the message
                   setMessages((prevMessages) => {
-                    const newMessages = [...prevMessages];
-                    const lastMessage = newMessages[newMessages.length - 1];
+                    const newMessages = [...prevMessages]
+                    const lastMessage = newMessages[newMessages.length - 1]
 
                     if (lastMessage && lastMessage.role === 'agent') {
                       // Find the tool call in active calls to get its details
-                      const toolCalls = [...(lastMessage.tool_calls || [])];
+                      const toolCalls = [...(lastMessage.tool_calls || [])]
 
                       // Add the completed tool call
                       const completedToolCall: ToolCall = {
                         role: 'tool',
                         content: toolData.content || null,
                         tool_call_id: toolData.tool_call_id!,
-                        tool_name: prev[toolData.tool_call_id!]?.tool_name || 'unknown',
-                        tool_args: prev[toolData.tool_call_id!]?.tool_args || {},
+                        tool_name: activeToolCall?.tool_name || 'unknown',
+                        tool_args: activeToolCall?.tool_args || {},
                         tool_call_error: toolData.error || false,
                         metrics: {
                           time: toolData.time || 0
                         },
                         created_at: chunk.created_at
-                      };
+                      }
 
-                      toolCalls.push(completedToolCall);
-                      lastMessage.tool_calls = toolCalls;
+                      toolCalls.push(completedToolCall)
+                      lastMessage.tool_calls = toolCalls
                     }
 
-                    return newMessages;
-                  });
+                    return newMessages
+                  })
                 }
               }
             } else if (chunk.event === RunEvent.RunResponse) {
@@ -281,7 +287,7 @@ const useAIChatStreamHandler = () => {
               })
             } else if (chunk.event === RunEvent.RunError) {
               // Clear active tool calls on error
-              setActiveToolCalls({});
+              setActiveToolCalls({})
 
               updateMessagesWithErrorState()
               const errorContent = chunk.content as string
@@ -296,7 +302,7 @@ const useAIChatStreamHandler = () => {
               }
             } else if (chunk.event === RunEvent.RunCompleted) {
               // Clear active tool calls on completion
-              setActiveToolCalls({});
+              setActiveToolCalls({})
 
               setMessages((prevMessages) => {
                 const newMessages = prevMessages.map((message, index) => {
@@ -343,7 +349,7 @@ const useAIChatStreamHandler = () => {
           },
           onError: (error) => {
             // Clear active tool calls on error
-            setActiveToolCalls({});
+            setActiveToolCalls({})
 
             updateMessagesWithErrorState()
             setStreamingErrorMessage(error.message)
@@ -360,7 +366,7 @@ const useAIChatStreamHandler = () => {
         })
       } catch (error) {
         // Clear active tool calls on error
-        setActiveToolCalls({});
+        setActiveToolCalls({})
 
         updateMessagesWithErrorState()
         setStreamingErrorMessage(
@@ -395,6 +401,7 @@ const useAIChatStreamHandler = () => {
       sessionId,
       setSessionId,
       hasStorage,
+      activeToolCalls,
       setActiveToolCalls
     ]
   )

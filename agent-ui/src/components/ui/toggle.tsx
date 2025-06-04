@@ -14,7 +14,7 @@ export interface ToggleProps {
 }
 
 const Toggle = React.forwardRef<HTMLButtonElement, ToggleProps>(
-  ({ checked, onCheckedChange, disabled = false, className, size = 'md', label }, ref) => {
+  ({ checked, onCheckedChange, disabled = false, className, label }, ref) => {
     return (
       <button
         ref={ref}
@@ -25,8 +25,8 @@ const Toggle = React.forwardRef<HTMLButtonElement, ToggleProps>(
         disabled={disabled}
         onClick={() => onCheckedChange(!checked)}
         className={cn(
-          'inline-flex items-center justify-center transition-all duration-200 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50',
-          'border border-accent bg-primaryAccent hover:border-primary/50 rounded-xl',
+          'focus-visible:ring-ring inline-flex items-center justify-center transition-all duration-200 focus-visible:outline-none focus-visible:ring-1 disabled:pointer-events-none disabled:opacity-50',
+          'rounded-xl border border-accent bg-primaryAccent hover:border-primary/50',
           // Match the submit button size: icon size (h-9 w-9) + p-5 padding = 36px + 40px = 76px
           'h-[42px] w-[42px]',
           className

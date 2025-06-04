@@ -3,14 +3,17 @@ import { toast } from 'sonner'
 
 import { usePlaygroundStore } from '../store'
 
-import { ComboboxAgent, ComboboxTeam, type PlaygroundChatMessage } from '@/types/playground'
+import {
+  ComboboxAgent,
+  ComboboxTeam,
+  type PlaygroundChatMessage
+} from '@/types/playground'
 import {
   getPlaygroundAgentsAPI,
   getPlaygroundStatusAPI,
   getPlaygroundTeamsAPI
 } from '@/api/playground'
 import { useQueryState } from 'nuqs'
-import { get } from 'http'
 
 const useChatActions = () => {
   const { chatInputRef } = usePlaygroundStore()
@@ -131,7 +134,7 @@ const useChatActions = () => {
       setTeams(teams)
       return { agents, teams }
     } catch (error) {
-      console.error("Error initializing playground:", error)
+      console.error('Error initializing playground:', error)
       setIsEndpointActive(false)
       setSelectedModel('')
       setHasStorage(false)

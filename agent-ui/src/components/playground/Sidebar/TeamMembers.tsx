@@ -28,7 +28,10 @@ export function TeamMembers() {
 
       setIsLoading(true)
       try {
-        const teamDetails = await getPlaygroundTeamAPI(selectedEndpoint, selectedTeamId)
+        const teamDetails = await getPlaygroundTeamAPI(
+          selectedEndpoint,
+          selectedTeamId
+        )
         setSelectedTeamDetails(teamDetails)
       } catch (error) {
         console.error('Error fetching team details:', error)
@@ -39,7 +42,12 @@ export function TeamMembers() {
     }
 
     fetchTeamDetails()
-  }, [selectedTeamId, selectedEndpoint, isEndpointActive, setSelectedTeamDetails])
+  }, [
+    selectedTeamId,
+    selectedEndpoint,
+    isEndpointActive,
+    setSelectedTeamDetails
+  ])
 
   if (!selectedTeamId || !isEndpointActive) {
     return null
@@ -59,13 +67,11 @@ export function TeamMembers() {
       {isLoading ? (
         <div className="flex w-full flex-col gap-2">
           {Array.from({ length: 3 }).map((_, index) => (
-            <Skeleton
-              key={index}
-              className="h-9 w-full rounded-xl"
-            />
+            <Skeleton key={index} className="h-9 w-full rounded-xl" />
           ))}
         </div>
-      ) : selectedTeamDetails?.members && selectedTeamDetails.members.length > 0 ? (
+      ) : selectedTeamDetails?.members &&
+        selectedTeamDetails.members.length > 0 ? (
         <div className="flex w-full flex-col gap-2">
           <AnimatePresence>
             {selectedTeamDetails.members.map((member, index) => (
@@ -81,9 +87,9 @@ export function TeamMembers() {
                 }}
               >
                 <Icon
-                  type={member.team_id ? "user" : "user"}
+                  type={member.team_id ? 'user' : 'user'}
                   size="xs"
-                  className={member.team_id ? "text-blue-400" : "text-primary"}
+                  className={member.team_id ? 'text-blue-400' : 'text-primary'}
                 />
                 <div className="flex flex-1 flex-col gap-1">
                   <div className="text-xs font-medium uppercase text-white">
@@ -95,18 +101,19 @@ export function TeamMembers() {
                   {member.model && (
                     <div className="flex items-center gap-2">
                       <Icon
-                        type={getProviderIcon(member.model.provider)}
+                        type={getProviderIcon(member.model.provider) || 'user'}
                         size="xs"
                         className="text-muted"
                       />
-                      <span className="text-xs text-muted uppercase">
+                      <span className="text-xs uppercase text-muted">
                         {member.model.provider}
                       </span>
                     </div>
                   )}
                   {member.members && member.members.length > 0 && (
                     <div className="mt-1 text-xs text-muted">
-                      {member.members.length} member{member.members.length !== 1 ? 's' : ''}
+                      {member.members.length} member
+                      {member.members.length !== 1 ? 's' : ''}
                     </div>
                   )}
                 </div>

@@ -212,8 +212,7 @@ const Sidebar = () => {
     hydrated,
     isEndpointLoading,
     teams,
-    agents,
-    selectedEntityType
+    agents
   } = usePlaygroundStore()
   const [isMounted, setIsMounted] = useState(false)
   const [agentId] = useQueryState('agent')

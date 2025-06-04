@@ -5,7 +5,9 @@ import Tooltip from '@/components/ui/tooltip'
 import Icon from '@/components/ui/icon'
 import ToolCallModal from './ToolCallModal'
 
-const ActiveToolCallComponent: React.FC<{ toolCall: ToolCall }> = ({ toolCall }) => {
+const ActiveToolCallComponent: React.FC<{ toolCall: ToolCall }> = ({
+  toolCall
+}) => {
   const [isModalOpen, setIsModalOpen] = React.useState(false)
 
   const handleClick = () => {
@@ -19,13 +21,15 @@ const ActiveToolCallComponent: React.FC<{ toolCall: ToolCall }> = ({ toolCall })
   return (
     <>
       <div
-        className="cursor-pointer rounded-full bg-accent/70 px-2 py-1.5 text-xs hover:bg-accent/80 transition-colors animate-pulse"
+        className="animate-pulse cursor-pointer rounded-full bg-accent/70 px-2 py-1.5 text-xs transition-colors hover:bg-accent/80"
         onClick={handleClick}
         title="Click to view details"
       >
         <div className="flex items-center gap-1">
           <span className="inline-block size-2 rounded-full bg-primary/20"></span>
-          <p className="font-dmmono uppercase text-primary/80">{toolCall.tool_name}</p>
+          <p className="font-dmmono uppercase text-primary/80">
+            {toolCall.tool_name}
+          </p>
         </div>
       </div>
       <ToolCallModal
@@ -63,7 +67,10 @@ const ActiveToolCalls: React.FC = () => {
       <div className="flex flex-wrap gap-2">
         {toolCallsArray.map((toolCall) => (
           <ActiveToolCallComponent
-            key={toolCall.tool_call_id || `${toolCall.tool_name}-${toolCall.created_at}`}
+            key={
+              toolCall.tool_call_id ||
+              `${toolCall.tool_name}-${toolCall.created_at}`
+            }
             toolCall={toolCall}
           />
         ))}
