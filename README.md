@@ -114,3 +114,17 @@ pnpm dev
 
 The web interface will be available at `http://localhost:3000`
 
+### OpenAI-Compatible API
+
+The backend exposes `/v1/chat/completions` and `/v1/completions` endpoints that
+follow the OpenAI API schema. Set the following environment variables as needed:
+
+```bash
+export OLLAMA_API_BASE=<ollama-host:port>
+export AZURE_OPENAI_API_VERSION=<azure-version>
+```
+
+Send OpenAI-style requests to `http://localhost:8000/v1/chat/completions` or
+`http://localhost:8000/v1/completions` and the request will be routed to the
+appropriate Agno team (`HackerNewsTeam` or `ResearchTeam`).
+
