@@ -1,6 +1,6 @@
 from agno.team import Team
 from agno.tools.thinking import ThinkingTools
-from models import team_model, reasoning
+from models import team_model
 from storage.config import get_storage, get_memory
 from agents import HackerNewsResearcher, ArticleReader
 
@@ -20,9 +20,10 @@ HackerNewsTeam = Team(
         "2. tranfer the returned links to the article reader agent to read each HackerNews link for the stories to get more information.",
         "3. transfer the returned links to the research team to enrich each story with more information",
         "4. provide a thoughtful and engaging summary.",
+        "Do not reply until all agents have responded"
     ],
     success_criteria="""
-    A report of the user's request containing a title, summary from the reader agent, additional details from the enrichment agent (with citations), Reddit community perspectives, and reference links to the original URLs. Use this template:
+    A report of the user's request containing a title, summary from the reader agent, additional details from the enrichment agent (with citations), Reddit community perspectives, and reference links to the original URLs. This requires all agents be  consulted. Use this template:
     # Report
     ## {{Article 1 Title}}
     ### Summary
@@ -50,5 +51,5 @@ HackerNewsTeam = Team(
     monitoring=False,
     tools=[ThinkingTools(add_instructions=True)],
     reasoning=True,
-    reasoning_model=reasoning
+    # reasoning_model=reasoning
 )

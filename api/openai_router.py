@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 import time
-from typing import Iterator, List, Optional
+from typing import List, Optional
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
-from teams import HackerNewsTeam, ResearchTeam
+from teams import HackerNewsTeam
 
 router = APIRouter()
 
@@ -26,9 +26,10 @@ class CompletionRequest(BaseModel):
 
 
 def _select_team(model: str):
-    if "hackernews" in model.lower() or "hn" in model.lower():
-        return HackerNewsTeam
-    return ResearchTeam
+    # if "hackernews" in model.lower() or "hn" in model.lower():
+    #     return HackerNewsTeam
+    # return ResearchTeam
+    return HackerNewsTeam
 
 
 def _run_team(team, prompt: str, stream: bool):
@@ -66,21 +67,3 @@ async def chat_completions(req: ChatCompletionRequest):
         ],
     }
 
-
-@router.post("/v1/completions")
-async def completions(req: CompletionRequest):
-    team = _select_team(req.model)
-    content = _run_team(team, req.prompt, req.stream or False)
-    return {
-        "id": f"cmpl-{int(time.time()*1000)}",
-        "object": "text_completion",
-        "created": int(time.time()),
-        "model": req.model,
-        "choices": [
-            {
-                "index": 0,
-                "text": content,
-                "finish_reason": "stop",
-            }
-        ],
-    }
