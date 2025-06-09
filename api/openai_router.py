@@ -34,17 +34,32 @@ def _select_team(model: str):
 
 def _run_team(team, prompt: str, stream: bool):
     try:
-        resp = team.run(prompt, stream=stream)
+        # Use the correct method signature for team.run()
+        resp = team.run(
+            message=prompt,
+            stream=stream,
+            session_id=None,  # Could generate a session ID if needed
+            user_id=None,
+        )
     except Exception as e:  # pragma: no cover - runtime errors
         raise HTTPException(status_code=500, detail=str(e))
 
     if stream:
-        # Concatenate streamed content pieces
+        # For streaming responses, need to handle differently
+        # The playground uses team_chat_response_streamer
         content = "".join(
             r.content for r in resp if getattr(r, "content", None)
         )
     else:
-        content = resp.content if hasattr(resp, "content") else str(resp)
+        # Non-streaming responses return a RunResponse object
+        if hasattr(resp, 'content'):
+            content = resp.content
+        elif hasattr(resp, 'to_dict'):
+            # RunResponse object - extract content
+            resp_dict = resp.to_dict()
+            content = resp_dict.get('content', str(resp_dict))
+        else:
+            content = str(resp)
     return content
 
 
