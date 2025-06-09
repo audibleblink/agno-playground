@@ -6,7 +6,7 @@ from typing import List, Optional
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
-from teams import HackerNewsTeam
+from teams import HackerNewsTeam, ResearchTeam
 
 router = APIRouter()
 
@@ -26,22 +26,20 @@ class CompletionRequest(BaseModel):
 
 
 def _select_team(model: str):
-    # if "hackernews" in model.lower() or "hn" in model.lower():
-    #     return HackerNewsTeam
-    # return ResearchTeam
-    return HackerNewsTeam
+    if "hackernews" in model.lower() or "hn" in model.lower():
+        return HackerNewsTeam
+    return ResearchTeam
 
 
 def _run_team(team, prompt: str, stream: bool):
     try:
-        # Use the correct method signature for team.run()
         resp = team.run(
             message=prompt,
             stream=stream,
             session_id=None,  # Could generate a session ID if needed
             user_id=None,
         )
-    except Exception as e:  # pragma: no cover - runtime errors
+    except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
     if stream:
