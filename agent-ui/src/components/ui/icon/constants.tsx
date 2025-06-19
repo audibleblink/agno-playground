@@ -35,6 +35,8 @@ import {
   Check,
   ChevronDown,
   ChevronUp,
+  ChevronRight,
+  Users,
   Trash,
   ToggleLeft,
   ToggleRight
@@ -75,6 +77,8 @@ export const ICONS: IconTypeMap = {
   check: Check,
   'chevron-down': ChevronDown,
   'chevron-up': ChevronUp,
+  'chevron-right': ChevronRight,
+  users: Users,
   'plus-icon': PlusIcon,
   references: ReferencesIcon,
   trash: Trash,

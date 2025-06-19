@@ -104,9 +104,9 @@ const AgentMessageWrapper = ({
       {/* Show active tool calls only for the last message when streaming */}
       {isLastMessage && isStreaming && <ActiveToolCalls />}
 
-      {/* Show completed tool calls */}
+      {/* Show completed tool calls grouped by agent */}
       {message.tool_calls && message.tool_calls.length > 0 && (
-        <div className="flex items-center gap-3">
+        <div className="flex items-start gap-3">
           <Tooltip
             delayDuration={0}
             content={<p className="text-accent">Tool Calls</p>}
@@ -120,16 +120,39 @@ const AgentMessageWrapper = ({
             />
           </Tooltip>
 
-          <div className="flex flex-wrap gap-2">
-            {message.tool_calls.map((toolCall, index) => (
-              <ToolComponent
-                key={
-                  toolCall.tool_call_id ||
-                  `${toolCall.tool_name}-${toolCall.created_at}-${index}`
+          <div className="flex flex-col gap-3">
+            {(() => {
+              // Group tool calls by agent
+              const groupedToolCalls = message.tool_calls.reduce((acc, toolCall, index) => {
+                const agentKey = toolCall.agent_name || toolCall.agent_id || 'coordinator'
+                if (!acc[agentKey]) {
+                  acc[agentKey] = []
                 }
-                tools={toolCall}
-              />
-            ))}
+                acc[agentKey].push({ toolCall, index })
+                return acc
+              }, {} as Record<string, Array<{ toolCall: typeof message.tool_calls[0], index: number }>>)
+
+              return Object.entries(groupedToolCalls).map(([agentKey, toolCalls]) => (
+                <div key={agentKey} className="flex flex-col gap-2">
+                  {toolCalls.length > 1 && (
+                    <p className="text-xs font-medium uppercase text-primary/60">
+                      {agentKey} ({toolCalls.length} tools)
+                    </p>
+                  )}
+                  <div className="flex flex-wrap gap-2">
+                    {toolCalls.map(({ toolCall, index }) => (
+                      <ToolComponent
+                        key={
+                          toolCall.tool_call_id ||
+                          `${toolCall.tool_name}-${toolCall.created_at}-${index}`
+                        }
+                        tools={toolCall}
+                      />
+                    ))}
+                  </div>
+                </div>
+              ))
+            })()}
           </div>
         </div>
       )}
@@ -250,11 +273,18 @@ const ToolComponent = memo(({ tools }: ToolCallProps) => {
       <div
         className="cursor-pointer rounded-full bg-accent px-2 py-1.5 text-xs transition-colors hover:bg-accent/80"
         onClick={handleClick}
-        title="Click to view details"
+        title={`${tools.tool_name}${tools.agent_name ? ` (${tools.agent_name})` : ''} - Click to view details`}
       >
-        <p className="font-dmmono uppercase text-primary/80">
-          {tools.tool_name}
-        </p>
+        <div className="flex flex-col">
+          <p className="font-dmmono uppercase text-primary/80">
+            {tools.tool_name}
+          </p>
+          {tools.agent_name && (
+            <p className="text-xs text-primary/60">
+              {tools.agent_name}
+            </p>
+          )}
+        </div>
       </div>
       <ToolCallModal
         isOpen={isModalOpen}

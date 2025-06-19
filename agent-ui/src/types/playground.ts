@@ -9,6 +9,9 @@ export interface ToolCall {
     time: number
   }
   created_at: number
+  agent_id?: string
+  agent_name?: string
+  is_team?: boolean
 }
 
 export interface ReasoningSteps {

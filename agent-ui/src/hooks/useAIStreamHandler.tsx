@@ -31,6 +31,7 @@ const useAIChatStreamHandler = () => {
   const setActiveToolCalls = usePlaygroundStore(
     (state) => state.setActiveToolCalls
   )
+  const getAgentNameById = usePlaygroundStore((state) => state.getAgentNameById)
   const { streamResponse } = useAIResponseStream()
 
   const updateMessagesWithErrorState = useCallback(() => {
@@ -151,6 +152,7 @@ const useAIChatStreamHandler = () => {
                 }
 
                 if (toolData.tool_name && toolData.tool_call_id) {
+                  const agentName = chunk.agent_id ? getAgentNameById(chunk.agent_id) : null
                   const newToolCall: ToolCall = {
                     role: 'tool',
                     content: null,
@@ -159,7 +161,10 @@ const useAIChatStreamHandler = () => {
                     tool_args: toolData.tool_args || {},
                     tool_call_error: false,
                     metrics: { time: 0 },
-                    created_at: chunk.created_at
+                    created_at: chunk.created_at,
+                    agent_id: chunk.agent_id,
+                    agent_name: agentName || chunk.agent_id,
+                    is_team: selectedEntityType === 'team' && chunk.agent_id === teamId
                   }
 
                   setActiveToolCalls((prev) => ({
@@ -199,6 +204,8 @@ const useAIChatStreamHandler = () => {
                       const toolCalls = [...(lastMessage.tool_calls || [])]
 
                       // Add the completed tool call
+                      const agentId = activeToolCall?.agent_id || chunk.agent_id
+                      const agentName = agentId ? getAgentNameById(agentId) : null
                       const completedToolCall: ToolCall = {
                         role: 'tool',
                         content: toolData.content || null,
@@ -209,7 +216,10 @@ const useAIChatStreamHandler = () => {
                         metrics: {
                           time: toolData.time || 0
                         },
-                        created_at: chunk.created_at
+                        created_at: chunk.created_at,
+                        agent_id: agentId,
+                        agent_name: agentName || activeToolCall?.agent_name || agentId,
+                        is_team: activeToolCall?.is_team
                       }
 
                       toolCalls.push(completedToolCall)
@@ -402,7 +412,8 @@ const useAIChatStreamHandler = () => {
       setSessionId,
       hasStorage,
       activeToolCalls,
-      setActiveToolCalls
+      setActiveToolCalls,
+      getAgentNameById
     ]
   )
 

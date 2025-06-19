@@ -70,6 +70,7 @@ interface PlaygroundStore {
   setSelectedEntityType: (type: 'agent' | 'team' | null) => void
   selectedTeamDetails: TeamDetails | null
   setSelectedTeamDetails: (team: TeamDetails | null) => void
+  getAgentNameById: (agentId: string) => string | null
   sessionsData: SessionEntry[] | null
   setSessionsData: (
     sessionsData:
@@ -135,6 +136,43 @@ export const usePlaygroundStore = create<PlaygroundStore>()(
       selectedTeamDetails: null,
       setSelectedTeamDetails: (team) =>
         set(() => ({ selectedTeamDetails: team })),
+      getAgentNameById: (agentId) => {
+        const state = usePlaygroundStore.getState()
+        
+        // Check if it's the current agent
+        const agents = state.agents
+        const agent = agents.find(a => a.value === agentId)
+        if (agent) return agent.label
+        
+        // Check if it's the current team
+        const teams = state.teams
+        const team = teams.find(t => t.value === agentId)
+        if (team) return team.label
+        
+        // Check in team members (recursive function to handle nested teams)
+        const findInMembers = (members: TeamDetails['members']): string | null => {
+          if (!members) return null
+          
+          for (const member of members) {
+            if (member.agent_id === agentId || member.team_id === agentId) {
+              return member.name
+            }
+            // Check nested team members
+            if (member.members) {
+              const found = findInMembers(member.members)
+              if (found) return found
+            }
+          }
+          return null
+        }
+        
+        if (state.selectedTeamDetails?.members) {
+          const found = findInMembers(state.selectedTeamDetails.members)
+          if (found) return found
+        }
+        
+        return null
+      },
       sessionsData: null,
       setSessionsData: (sessionsData) =>
         set((state) => ({

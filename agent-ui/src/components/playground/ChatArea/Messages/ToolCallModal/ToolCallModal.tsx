@@ -34,6 +34,9 @@ const ToolCallModal: React.FC<ToolCallModalProps> = ({
             {toolCall.metrics?.time
               ? `${(toolCall.metrics.time / 1000).toFixed(2)}s`
               : 'N/A'}
+            {toolCall.agent_name && (
+              <> • Agent: {toolCall.agent_name}</>
+            )}
           </DialogDescription>
         </DialogHeader>
 

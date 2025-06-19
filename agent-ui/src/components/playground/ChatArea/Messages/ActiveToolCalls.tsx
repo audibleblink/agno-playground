@@ -23,13 +23,20 @@ const ActiveToolCallComponent: React.FC<{ toolCall: ToolCall }> = ({
       <div
         className="animate-pulse cursor-pointer rounded-full bg-accent/70 px-2 py-1.5 text-xs transition-colors hover:bg-accent/80"
         onClick={handleClick}
-        title="Click to view details"
+        title={`${toolCall.tool_name}${toolCall.agent_name ? ` (${toolCall.agent_name})` : ''} - Click to view details`}
       >
         <div className="flex items-center gap-1">
           <span className="inline-block size-2 rounded-full bg-primary/20"></span>
-          <p className="font-dmmono uppercase text-primary/80">
-            {toolCall.tool_name}
-          </p>
+          <div className="flex flex-col">
+            <p className="font-dmmono uppercase text-primary/80">
+              {toolCall.tool_name}
+            </p>
+            {toolCall.agent_name && (
+              <p className="text-xs text-primary/60">
+                {toolCall.agent_name}
+              </p>
+            )}
+          </div>
         </div>
       </div>
       <ToolCallModal
@@ -64,16 +71,39 @@ const ActiveToolCalls: React.FC = () => {
         />
       </Tooltip>
 
-      <div className="flex flex-wrap gap-2">
-        {toolCallsArray.map((toolCall) => (
-          <ActiveToolCallComponent
-            key={
-              toolCall.tool_call_id ||
-              `${toolCall.tool_name}-${toolCall.created_at}`
+      <div className="flex flex-col gap-3">
+        {(() => {
+          // Group active tool calls by agent
+          const groupedToolCalls = toolCallsArray.reduce((acc, toolCall) => {
+            const agentKey = toolCall.agent_name || toolCall.agent_id || 'coordinator'
+            if (!acc[agentKey]) {
+              acc[agentKey] = []
             }
-            toolCall={toolCall}
-          />
-        ))}
+            acc[agentKey].push(toolCall)
+            return acc
+          }, {} as Record<string, typeof toolCallsArray>)
+
+          return Object.entries(groupedToolCalls).map(([agentKey, toolCalls]) => (
+            <div key={agentKey} className="flex flex-col gap-2">
+              {toolCalls.length > 1 && (
+                <p className="animate-pulse text-xs font-medium uppercase text-primary/60">
+                  {agentKey} ({toolCalls.length} active)
+                </p>
+              )}
+              <div className="flex flex-wrap gap-2">
+                {toolCalls.map((toolCall) => (
+                  <ActiveToolCallComponent
+                    key={
+                      toolCall.tool_call_id ||
+                      `${toolCall.tool_name}-${toolCall.created_at}`
+                    }
+                    toolCall={toolCall}
+                  />
+                ))}
+              </div>
+            </div>
+          ))
+        })()}
       </div>
     </div>
   )
