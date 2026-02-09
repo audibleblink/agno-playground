@@ -1,322 +1,159 @@
-# Agent Development Guide
-
-This file contains instructions for AI coding agents working in the agno-playground repository.
+# AGENTS.md
 
 ## Project Overview
 
-Multi-agent AI system built with the [Agno](https://github.com/agno-ai/agno) framework for research and content analysis. The project consists of a Python FastAPI backend and a Next.js TypeScript frontend.
-
-## Build, Lint, and Test Commands
-
-### Python Backend (Root Directory)
-
-**Package Manager:** `uv` (modern Python package manager)
-
-```bash
-# Install dependencies
-uv sync
-
-# Run the application
-uv run main.py
-
-# Run a single Python file
-uv run python path/to/file.py
-
-# Setup Agno playground
-uv run ag setup
-```
-
-**Note:** There is currently no pytest configuration or test suite. When adding tests:
-- Create `tests/` directory at project root
-- Use `pytest` as the testing framework
-- Run tests with: `uv run pytest`
-- Run a single test: `uv run pytest tests/test_file.py::test_function_name`
-
-### TypeScript Frontend (agent-ui/)
-
-**Package Manager:** `npm` (or `pnpm`)
-
-```bash
-# Install dependencies
-cd agent-ui && npm install
-
-# Development server (port 3000)
-npm run dev
-
-# Production build
-npm run build
-
-# Linting
-npm run lint              # Check for issues
-npm run lint:fix          # Auto-fix issues
-
-# Formatting (Prettier)
-npm run format            # Check formatting
-npm run format:fix        # Auto-fix formatting
-
-# Type checking
-npm run typecheck         # Run TypeScript compiler checks
-
-# Validate all (lint + format + typecheck)
-npm run validate
-
-# Production server
-npm run start
-```
-
-**Run a single test:** Currently no test suite configured. When adding tests with Jest or Vitest:
-```bash
-npm test path/to/file.test.tsx
-```
-
-## Code Style Guidelines
-
-### Python Backend
-
-**Import Organization:**
-```python
-# 1. Standard library imports
-from typing import Optional
-
-# 2. Third-party imports
-from agno.agent import Agent
-from agno.team import Team
-from fastapi import FastAPI
-from pydantic import BaseModel, Field
-
-# 3. Local imports
-from models import worker_model, team_model
-from storage.config import get_storage, get_memory
-from agents import HackerNewsResearcher, ArticleReader
-```
-
-**Naming Conventions:**
-- **Classes:** PascalCase (e.g., `HackerNewsTeam`, `ArticleReader`)
-- **Functions:** snake_case (e.g., `get_storage`, `get_memory`)
-- **Constants:** UPPER_SNAKE_CASE (e.g., `STORAGE_DB`)
-- **Variables:** snake_case (e.g., `worker_model`, `memory_db`)
-- **Agent/Team IDs:** snake_case strings (e.g., `"hn_researcher"`, `"article_reader"`)
-
-**Type Hints:**
-- Use type hints for all function signatures
-- Use Pydantic models for structured data
-```python
-def get_storage(table_name: str) -> SqliteStorage:
-    """Get storage instance for a specific table."""
-    return SqliteStorage(table_name=table_name, db_file=STORAGE_DB)
-
-class Article(BaseModel):
-    title: str = Field(..., description="The Article's Title")
-    summary: str = Field(..., description="A summary of the article")
-    reference_links: list[str] = Field(..., description="A list of links")
-```
-
-**Docstrings:**
-- Use triple-quoted docstrings for functions
-- Keep them concise and descriptive
-
-**Error Handling:**
-- Let exceptions propagate naturally in most cases
-- Use try/except only when you can meaningfully handle the error
-- Avoid bare `except:` clauses
-
-### TypeScript Frontend
-
-**Import Organization:**
-```typescript
-// 1. React and Next.js imports
-'use client'
-import { useState } from 'react'
-
-// 2. Third-party library imports
-import { toast } from 'sonner'
-
-// 3. UI component imports
-import { TextArea } from '@/components/ui/textarea'
-import { Button } from '@/components/ui/button'
-
-// 4. Store/state imports
-import { usePlaygroundStore } from '@/store'
-
-// 5. Hook imports
-import useAIChatStreamHandler from '@/hooks/useAIStreamHandler'
-```
-
-**Naming Conventions:**
-- **Components:** PascalCase (e.g., `ChatInput`, `TeamSelector`)
-- **Hooks:** camelCase with `use` prefix (e.g., `useAIStreamHandler`)
-- **Functions:** camelCase (e.g., `handleSubmit`, `handleStreamResponse`)
-- **Constants:** UPPER_SNAKE_CASE or camelCase
-- **Types/Interfaces:** PascalCase (e.g., `MessageType`, `AgentConfig`)
-
-**TypeScript:**
-- Use strict mode (`strict: true` in tsconfig.json)
-- Avoid `any` types - use proper typing
-- Prefer `interface` for object shapes, `type` for unions/intersections
-- Use type inference when obvious
-
-**Formatting (Prettier config):**
-- Single quotes for strings
-- No semicolons
-- No trailing commas
-- Tailwind classes sorted automatically via plugin
-
-**Component Structure:**
-```typescript
-'use client' // If using client-side features
-
-import statements...
-
-const ComponentName = () => {
-  // Hooks first
-  const [state, setState] = useState('')
-  
-  // Event handlers
-  const handleSubmit = async () => {
-    // Implementation
-  }
-  
-  // Render
-  return (
-    <div className="...">
-      {/* JSX */}
-    </div>
-  )
-}
-
-export default ComponentName
-```
-
-**Error Handling:**
-```typescript
-try {
-  await handleStreamResponse(currentMessage, streamingEnabled)
-} catch (error) {
-  toast.error(
-    `Error in handleSubmit: ${
-      error instanceof Error ? error.message : String(error)
-    }`
-  )
-}
-```
+Multi-agent AI playground: **Agno** (Python/FastAPI backend) + **Next.js** (React/TypeScript frontend). Backend orchestrates AI agent teams; frontend (`agent-ui/`) provides the chat interface.
 
 ## Project Structure
 
 ```
 agno-playground/
-├── agents/              # Individual AI agents (Python)
-├── teams/               # Agent team configurations (Python)
-├── models/              # AI model configurations (Python)
-├── config/              # Environment and config (Python)
-├── storage/             # Data persistence (SQLite, LanceDB)
-├── knowledge/           # Knowledge base management (Python)
-├── api/                 # FastAPI routes (Python)
-├── agent-ui/            # Next.js React frontend
-│   ├── src/
-│   │   ├── app/         # Next.js app router pages
-│   │   ├── components/  # React components
-│   │   ├── hooks/       # Custom React hooks
-│   │   └── store/       # Zustand state management
-│   └── public/          # Static assets
-└── main.py              # FastAPI application entry point
+├── main.py                  # FastAPI entry point (uvicorn, port 7777)
+├── agents/                  # Individual Agno Agent definitions
+├── teams/                   # Team compositions (HackerNewsTeam, ResearchTeam)
+├── models/                  # AI model configuration (Ollama, Claude, Azure)
+├── config/                  # Environment variables and shared config
+├── storage/                 # SQLite + LanceDB persistence layer
+├── knowledge/               # Vector DB, embedders, and knowledge bases
+├── api/                     # Additional FastAPI routers
+├── pyproject.toml           # Python deps (uv)
+├── mise.toml                # Task runner
+└── agent-ui/                # Next.js 16 + React 19 frontend
+    ├── src/app/             # App Router pages
+    ├── src/components/      # React components (playground/, ui/)
+    ├── src/hooks/           # Custom React hooks
+    ├── src/api/             # API client functions
+    ├── src/lib/             # Utilities (cn, url validation)
+    ├── src/types/           # TypeScript type definitions
+    └── src/store.ts         # Zustand global state
 ```
 
-## Development Guidelines
+## Build / Lint / Test Commands
 
-### When Working with Agents
+### Backend (Python)
 
-- Always specify `agent_id` for persistent storage
-- Use `get_storage()` and `get_memory()` from `storage.config`
-- Enable streaming with `stream=True` and `stream_intermediate_steps=True`
-- Import models from `models` module (e.g., `worker_model`, `team_model`)
-
-### When Working with Teams
-
-- Teams should have a unique `team_id`
-- Use `mode="coordinate"` for multi-agent coordination
-- Provide clear `instructions` as a list of steps
-- Define `success_criteria` to guide team output format
-
-### File Naming
-
-- Python: snake_case (e.g., `article_reader.py`, `hackernews.py`)
-- TypeScript: PascalCase for components (e.g., `ChatInput.tsx`)
-- TypeScript: camelCase for utilities (e.g., `useAIStreamHandler.tsx`)
-
-### Adding New Dependencies
-
-**Python:**
 ```bash
-uv add package-name
+uv sync                      # Install dependencies
+uv run main.py               # Start server (port 7777, hot reload)
+
+# Testing (if tests exist)
+uv run pytest                              # All tests
+uv run pytest tests/test_foo.py            # Single file
+uv run pytest tests/test_foo.py::test_bar  # Single test
+uv run pytest -k "test_name"               # Match by name
 ```
 
-**TypeScript:**
+### Frontend (agent-ui/)
+
+Commands run from `agent-ui/`. Uses **pnpm**.
+
 ```bash
-cd agent-ui && npm install package-name
+pnpm install                 # Install dependencies
+pnpm dev                     # Dev server (port 3000)
+pnpm build                   # Production build
+pnpm lint                    # ESLint check
+pnpm lint:fix                # ESLint auto-fix
+pnpm format                  # Prettier check
+pnpm format:fix              # Prettier auto-format
+pnpm typecheck               # TypeScript check (tsc --noEmit)
+pnpm validate                # lint + format + typecheck (run before commits)
 ```
 
-## Common Patterns
+### Task Runner (mise)
 
-### Creating a New Agent
+Run in tmux to monitor output:
+```bash
+mise run ui                  # Frontend dev server
+mise run backend             # Backend server
+mise run dev                 # Both frontend and backend
+```
 
+## Code Style Guidelines
+
+### Python (Backend)
+
+**Imports**: Standard library > third-party (`agno`, `fastapi`, `pydantic`) > local modules. Local imports use bare paths (`from models import worker_model`), relative imports only within packages (`from .hackernews import HackerNewsTeam`).
+
+**Naming**:
+- `PascalCase`: Agent/Team instances (singletons: `HackerNewsResearcher`, `ResearchTeam`)
+- `snake_case`: functions, variables, module names
+- `UPPER_SNAKE_CASE`: module-level constants
+
+**Type hints**: Required on function signatures. Use modern syntax (`list[str]` not `List[str]`). Use `from __future__ import annotations` for forward references.
+
+**Data models**: Pydantic `BaseModel` with `Field(description="...")` for API schemas.
+
+**Agent/Team definitions**: Module-level instances with `id`, `name`, `db`, `memory_manager`:
 ```python
-from agno.agent import Agent
-from models import worker_model
-from storage.config import get_storage, get_memory
-
-NewAgent = Agent(
-    name="Agent Name",
+HackerNewsResearcher = Agent(
+    id="hn_researcher",
+    name="HackerNews Researcher",
     model=worker_model,
-    role="Clear role description",
-    tools=[SomeTools()],
-    agent_id="unique_agent_id",
-    storage=get_storage("unique_agent_id"),
-    memory=get_memory(),
-    stream_intermediate_steps=True,
-    stream=True
+    db=get_db(),
+    memory_manager=get_memory_manager(),
 )
 ```
 
-### Creating a New Team
+**Configuration**: Centralize in `config/environment.py`. Use `os.getenv()` with defaults. Never hardcode secrets.
 
-```python
-from agno.team import Team
-from models import team_model
-from storage.config import get_storage, get_memory
-from agents import Agent1, Agent2
+**Error handling**: `HTTPException` for API errors. Wrap external calls in try/except.
 
-NewTeam = Team(
-    name="Team Name",
-    mode="coordinate",
-    model=team_model,
-    team_id="unique_team_id",
-    instructions=[
-        "Step 1: Do this",
-        "Step 2: Do that",
-    ],
-    members=[Agent1, Agent2],
-    storage=get_storage("unique_team_id"),
-    memory=get_memory(),
-    stream=True
-)
-```
+**Module exports**: Use `__all__` with single quotes in `__init__.py`.
 
-### Creating a New React Component
+### TypeScript / React (Frontend)
 
+**Formatting** (Prettier): Single quotes, no semicolons, no trailing commas.
+
+**Imports**: External packages first, then `@/` aliased imports (separate with blank line). Use `type` keyword for type-only imports:
 ```typescript
-'use client'
-import { useState } from 'react'
+import { toast } from 'sonner'
 
-interface ComponentNameProps {
-  prop1: string
-  prop2?: number
-}
-
-const ComponentName = ({ prop1, prop2 }: ComponentNameProps) => {
-  const [state, setState] = useState('')
-
-  return <div>{/* JSX */}</div>
-}
-
-export default ComponentName
+import type { Agent, Team } from '@/types/playground'
 ```
+
+**Path aliases**: Use `@/` for `src/` (e.g., `@/components/ui/button`).
+
+**Components**: Arrow functions with `const`. Default export at end. Use `'use client'` only when needed.
+
+**Naming**:
+- `PascalCase`: components, interfaces, types
+- `camelCase`: variables, functions, hooks (prefix with `use`)
+
+**Types**: Define in `src/types/`. Use `interface` for objects, `type` for unions. Avoid `any`.
+
+**State**: Zustand in `src/store.ts`. Pattern: `value` + `setValue` pairs.
+
+**UI**: shadcn/ui components in `src/components/ui/`. Use `cn()` for class merging.
+
+**Styling**: Tailwind CSS only. No inline styles or CSS modules. Dark mode via `class` strategy.
+
+**Error handling**: try/catch in async functions. Show errors via `toast.error()`. Return safe defaults (empty arrays, null) on failure.
+
+**API layer**: Functions in `src/api/playground.ts`. Use native `fetch`, not axios.
+
+## Architecture Notes
+
+### Backend
+
+- `config/`: Re-exports from `environment.py`. Import as `from config import OLLAMA_API_BASE`.
+- `storage/config.py`: Singleton factories `get_db()` and `get_memory_manager()`. All Agents/Teams must use these.
+- `models/__init__.py`: Model instances and `worker_model`/`team_model` assignments.
+- `agents/`, `teams/`: Expose singletons via `__all__`. Add new agents/teams to these lists.
+- FastAPI app created via `AgentOS` in `main.py`, auto-registers `/v1/playground/*` endpoints.
+
+### Frontend
+
+- `src/store.ts`: Global state (endpoint, agent/team selection, messages, streaming status)
+- `src/hooks/useChatActions.ts`: Orchestrates initialization
+- `src/hooks/useAIStreamHandler.tsx`: Handles SSE streaming
+- `src/api/playground.ts`: All fetch calls; `routes.ts` builds URLs
+- URL params (`?agent=`, `?team=`, `?session=`) via `nuqs`
+
+## Key Dependencies
+
+| Layer | Packages |
+|-------|----------|
+| Backend | agno, fastapi, pydantic, lancedb, sqlalchemy, uvicorn |
+| Frontend | next 16, react 19, zustand, nuqs, radix-ui, tailwindcss |
+| AI Models | ollama, anthropic, azure-ai-inference, openai |
+| Tools | duckduckgo-search, newspaper4k, praw, arxiv |

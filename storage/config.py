@@ -1,15 +1,19 @@
-from agno.storage.sqlite import SqliteStorage
-from agno.memory.v2.db.sqlite import SqliteMemoryDb
-from agno.memory.v2.memory import Memory
+from agno.db.sqlite import SqliteDb
+from agno.memory import MemoryManager
 from config import STORAGE_DB
 
-# Storage and Memory
-memory_db = SqliteMemoryDb(table_name="memory", db_file=STORAGE_DB)
+# Shared database instance for all components
+_shared_db = None
 
-def get_storage(table_name: str) -> SqliteStorage:
-    """Get storage instance for a specific table."""
-    return SqliteStorage(table_name=table_name, db_file=STORAGE_DB)
 
-def get_memory() -> Memory:
-    """Get memory instance."""
-    return Memory(db=memory_db)
+def get_db() -> SqliteDb:
+    """Get shared database instance for all components."""
+    global _shared_db
+    if _shared_db is None:
+        _shared_db = SqliteDb(db_file=STORAGE_DB)
+    return _shared_db
+
+
+def get_memory_manager() -> MemoryManager:
+    """Get memory manager instance."""
+    return MemoryManager(db=get_db())

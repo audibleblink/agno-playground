@@ -1,6 +1,6 @@
 'use client'
 
-import * as React from 'react'
+import { useEffect } from 'react'
 import {
   Select,
   SelectTrigger,
@@ -11,7 +11,6 @@ import {
 import { usePlaygroundStore } from '@/store'
 import { useQueryState } from 'nuqs'
 import Icon from '@/components/ui/icon'
-import { useEffect } from 'react'
 import useChatActions from '@/hooks/useChatActions'
 
 export function AgentSelector() {
@@ -31,69 +30,68 @@ export function AgentSelector() {
   const [, setSessionId] = useQueryState('session')
   const [, setTeamId] = useQueryState('team')
 
-  // Set the model when the component mounts if an agent is already selected
+  // Sync selected agent state when agentId or agents list changes
   useEffect(() => {
-    if (agentId && agents.length > 0) {
-      const agent = agents.find((agent) => agent.value === agentId)
-      if (agent) {
-        setSelectedModel(agent.model.provider || '')
-        setHasStorage(!!agent.storage)
-        setSelectedEntityType('agent')
-        if (agent.model.provider) {
-          focusChatInput()
-        }
-      } else {
-        setAgentId(agents[0].value)
-      }
+    if (!agentId || agents.length === 0) return
+
+    const agent = agents.find((a) => a.value === agentId)
+    if (!agent) {
+      // Selected agent no longer exists, default to first
+      setAgentId(agents[0].value)
+      return
     }
+
+    setSelectedModel(agent.model.provider || '')
+    setHasStorage(!!agent.storage)
+    setSelectedEntityType('agent')
+    if (agent.model.provider) focusChatInput()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [agentId, agents, setSelectedModel])
 
-  const handleOnValueChange = (value: string) => {
+  const handleValueChange = (value: string) => {
+    // Toggle behavior: clicking same value deselects
     const newAgentId = value === agentId ? null : value
-    const selectedAgent = agents.find((agent) => agent.value === newAgentId)
+    const selected = agents.find((a) => a.value === newAgentId)
 
-    setSelectedModel(selectedAgent?.model.provider || '')
-    setHasStorage(!!selectedAgent?.storage)
+    // Update all related state
+    setSelectedModel(selected?.model.provider || '')
+    setHasStorage(!!selected?.storage)
     setSelectedTeamId(null)
     setSelectedEntityType(newAgentId ? 'agent' : null)
     setAgentId(newAgentId)
     setTeamId(null)
     setMessages([])
     setSessionId(null)
-    if (selectedAgent?.model.provider) {
-      focusChatInput()
-    }
+
+    if (selected?.model.provider) focusChatInput()
   }
 
   return (
-    <Select
-      value={agentId || ''}
-      onValueChange={(value) => handleOnValueChange(value)}
-    >
+    <Select value={agentId || ''} onValueChange={handleValueChange}>
       <SelectTrigger className="h-9 w-full rounded-xl border border-primary/15 bg-primaryAccent text-xs font-medium uppercase">
         <SelectValue placeholder="Select Agent" />
       </SelectTrigger>
       <SelectContent className="border-none bg-primaryAccent font-dmmono shadow-lg">
-        {agents.map((agent, index) => (
-          <SelectItem
-            className="cursor-pointer"
-            key={`${agent.value}-${index}`}
-            value={agent.value}
-          >
-            <div className="flex items-center gap-3 text-xs font-medium uppercase">
-              <Icon type={'agent'} size="xs" />
-              {agent.label}
-            </div>
-          </SelectItem>
-        ))}
-        {agents.length === 0 && (
+        {agents.length === 0 ? (
           <SelectItem
             value="no-agents"
             className="cursor-not-allowed select-none text-center"
           >
             No agents found
           </SelectItem>
+        ) : (
+          agents.map((agent) => (
+            <SelectItem
+              key={agent.value}
+              value={agent.value}
+              className="cursor-pointer"
+            >
+              <div className="flex items-center gap-3 text-xs font-medium uppercase">
+                <Icon type="agent" size="xs" />
+                {agent.label}
+              </div>
+            </SelectItem>
+          ))
         )}
       </SelectContent>
     </Select>

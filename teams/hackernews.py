@@ -1,28 +1,49 @@
 from agno.team import Team
-from agno.tools.thinking import ThinkingTools
+from agno.tools.reasoning import ReasoningTools
 from models import team_model
-from storage.config import get_storage, get_memory
-from agents import HackerNewsResearcher, ArticleReader
+from storage.config import get_db, get_memory_manager
+from agents import (
+    HackerNewsResearcher,
+    ArticleReader,
+    WebSearcher,
+    RedditResearcher,
+    AcademicResearcher,
+)
 
-def _get_research_team():
-    from teams import ResearchTeam
-    return ResearchTeam
+
+# Create a dedicated Research Team instance for use as a sub-team.
+# This avoids sharing the same object with the standalone ResearchTeam,
+# which causes AgentOS to set parent_team_id on it and break the
+# standalone /teams/research_team endpoint.
+_ResearchSubTeam = Team(
+    name="Research Team",
+    id="research_team_sub",
+    model=team_model,
+    members=[WebSearcher, RedditResearcher, AcademicResearcher],
+    delegate_to_all_members=True,
+    share_member_interactions=True,
+    markdown=True,
+    memory_manager=get_memory_manager(),
+    db=get_db(),
+    debug_mode=True,
+    show_members_responses=True,
+    tools=[ReasoningTools(add_instructions=True)],
+)
 
 
 HackerNewsTeam = Team(
     name="HackerNews Team",
-    mode="coordinate",
     model=team_model,
-    team_id="hn_team",
+    id="hn_team",
     instructions=[
         "ALWAYS follow ALL steps:",
         "1. search hackernews for what the user is asking about.",
         "2. tranfer the returned links to the article reader agent to read each HackerNews link for the stories to get more information.",
         "3. transfer the returned links to the research team to enrich each story with more information",
         "4. provide a thoughtful and engaging summary.",
-        "Do not reply until all agents have responded"
+        "Do not reply until all agents have responded",
     ],
-    success_criteria="""
+    expected_output="""
     A report of the user's request containing a title, summary from the reader agent, additional details from the enrichment agent (with citations), Reddit community perspectives, and reference links to the original URLs. This requires all agents be  consulted. Use this template:
     # Report
     ## {{Article 1 Title}}
@@ -35,21 +56,15 @@ HackerNewsTeam = Team(
     ## {{Article 2 Title}}
     ...
     """,
-    members=[HackerNewsResearcher, ArticleReader, _get_research_team()],
-    add_member_tools_to_system_message=False,
-    debug_mode=True,
-    enable_agentic_context=True,
+    members=[HackerNewsResearcher, ArticleReader, _ResearchSubTeam],
+    delegate_to_all_members=False,
+    share_member_interactions=True,  # Allow members to see each other's responses
     enable_agentic_memory=True,
-    enable_team_history=True,
-    read_team_history=True,
+    add_history_to_context=True,
     markdown=True,
-    memory=get_memory(),
+    memory_manager=get_memory_manager(),
+    db=get_db(),
+    debug_mode=True,
     show_members_responses=True,
-    show_tool_calls=True,
-    storage=get_storage("hn_team"),
-    telemetry=False,
-    monitoring=False,
-    tools=[ThinkingTools(add_instructions=True)],
     reasoning=True,
-    # reasoning_model=reasoning
 )

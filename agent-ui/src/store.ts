@@ -6,146 +6,131 @@ import {
   type SessionEntry,
   type ToolCall,
   type Team as TeamDetails,
+  type ComboboxAgent,
   type ComboboxTeam
 } from '@/types/playground'
 
-interface Agent {
-  value: string
-  label: string
-  model: {
-    provider: string
-  }
-  storage?: boolean
-}
+// Helper type for setters that accept either a value or an updater function
+type SetterOrUpdater<T> = T | ((prev: T) => T)
 
 interface PlaygroundStore {
+  // Hydration state
   hydrated: boolean
   setHydrated: () => void
-  streamingErrorMessage: string
-  setStreamingErrorMessage: (streamingErrorMessage: string) => void
-  endpoints: {
-    endpoint: string
-    id_playground_endpoint: string
-  }[]
-  setEndpoints: (
-    endpoints: {
-      endpoint: string
-      id_playground_endpoint: string
-    }[]
-  ) => void
+
+  // Streaming state
   isStreaming: boolean
-  setIsStreaming: (isStreaming: boolean) => void
+  setIsStreaming: (value: boolean) => void
   streamingEnabled: boolean
-  setStreamingEnabled: (streamingEnabled: boolean) => void
+  setStreamingEnabled: (value: boolean) => void
+  streamingErrorMessage: string
+  setStreamingErrorMessage: (value: string) => void
+
+  // Endpoint state
+  selectedEndpoint: string
+  setSelectedEndpoint: (value: string) => void
   isEndpointActive: boolean
-  setIsEndpointActive: (isActive: boolean) => void
+  setIsEndpointActive: (value: boolean) => void
   isEndpointLoading: boolean
-  setIsEndpointLoading: (isLoading: boolean) => void
+  setIsEndpointLoading: (value: boolean) => void
+
+  // Entity selection state
+  agents: ComboboxAgent[]
+  setAgents: (value: ComboboxAgent[]) => void
+  teams: ComboboxTeam[]
+  setTeams: (value: ComboboxTeam[]) => void
+  selectedModel: string
+  setSelectedModel: (value: string) => void
+  selectedTeamId: string | null
+  setSelectedTeamId: (value: string | null) => void
+  selectedEntityType: 'agent' | 'team' | null
+  setSelectedEntityType: (value: 'agent' | 'team' | null) => void
+  selectedTeamDetails: TeamDetails | null
+  setSelectedTeamDetails: (value: TeamDetails | null) => void
+  hasStorage: boolean
+  setHasStorage: (value: boolean) => void
+
+  // Chat state
+  chatInputRef: React.RefObject<HTMLTextAreaElement | null>
   messages: PlaygroundChatMessage[]
-  setMessages: (
-    messages:
-      | PlaygroundChatMessage[]
-      | ((prevMessages: PlaygroundChatMessage[]) => PlaygroundChatMessage[])
-  ) => void
+  setMessages: (value: SetterOrUpdater<PlaygroundChatMessage[]>) => void
   activeToolCalls: Record<string, ToolCall>
   setActiveToolCalls: (
-    activeToolCalls:
-      | Record<string, ToolCall>
-      | ((prevToolCalls: Record<string, ToolCall>) => Record<string, ToolCall>)
+    value: SetterOrUpdater<Record<string, ToolCall>>
   ) => void
-  hasStorage: boolean
-  setHasStorage: (hasStorage: boolean) => void
-  chatInputRef: React.RefObject<HTMLTextAreaElement | null>
-  selectedEndpoint: string
-  setSelectedEndpoint: (selectedEndpoint: string) => void
-  agents: Agent[]
-  setAgents: (agents: Agent[]) => void
-  teams: ComboboxTeam[]
-  setTeams: (teams: ComboboxTeam[]) => void
-  selectedModel: string
-  setSelectedModel: (model: string) => void
-  selectedTeamId: string | null
-  setSelectedTeamId: (teamId: string | null) => void
-  selectedEntityType: 'agent' | 'team' | null
-  setSelectedEntityType: (type: 'agent' | 'team' | null) => void
-  selectedTeamDetails: TeamDetails | null
-  setSelectedTeamDetails: (team: TeamDetails | null) => void
+
+  // Session state
   sessionsData: SessionEntry[] | null
-  setSessionsData: (
-    sessionsData:
-      | SessionEntry[]
-      | ((prevSessions: SessionEntry[] | null) => SessionEntry[] | null)
-  ) => void
+  setSessionsData: (value: SetterOrUpdater<SessionEntry[] | null>) => void
   isSessionsLoading: boolean
-  setIsSessionsLoading: (isSessionsLoading: boolean) => void
+  setIsSessionsLoading: (value: boolean) => void
 }
+
+// Helper to resolve setter-or-updater pattern
+const resolveValue = <T>(value: SetterOrUpdater<T>, prev: T): T =>
+  typeof value === 'function' ? (value as (prev: T) => T)(prev) : value
 
 export const usePlaygroundStore = create<PlaygroundStore>()(
   persist(
     (set) => ({
+      // Hydration
       hydrated: false,
       setHydrated: () => set({ hydrated: true }),
+
+      // Streaming
+      isStreaming: false,
+      setIsStreaming: (isStreaming) => set({ isStreaming }),
+      streamingEnabled: true,
+      setStreamingEnabled: (streamingEnabled) => set({ streamingEnabled }),
       streamingErrorMessage: '',
       setStreamingErrorMessage: (streamingErrorMessage) =>
-        set(() => ({ streamingErrorMessage })),
-      endpoints: [],
-      setEndpoints: (endpoints) => set(() => ({ endpoints })),
-      isStreaming: false,
-      setIsStreaming: (isStreaming) => set(() => ({ isStreaming })),
-      streamingEnabled: true,
-      setStreamingEnabled: (streamingEnabled) =>
-        set(() => ({ streamingEnabled })),
-      isEndpointActive: false,
-      setIsEndpointActive: (isActive) =>
-        set(() => ({ isEndpointActive: isActive })),
-      isEndpointLoading: true,
-      setIsEndpointLoading: (isLoading) =>
-        set(() => ({ isEndpointLoading: isLoading })),
-      messages: [],
-      setMessages: (messages) =>
-        set((state) => ({
-          messages:
-            typeof messages === 'function' ? messages(state.messages) : messages
-        })),
-      activeToolCalls: {},
-      setActiveToolCalls: (activeToolCalls) =>
-        set((state) => ({
-          activeToolCalls:
-            typeof activeToolCalls === 'function'
-              ? activeToolCalls(state.activeToolCalls)
-              : activeToolCalls
-        })),
-      hasStorage: false,
-      setHasStorage: (hasStorage) => set(() => ({ hasStorage })),
-      chatInputRef: { current: null },
+        set({ streamingErrorMessage }),
+
+      // Endpoint
       selectedEndpoint: 'http://localhost:7777',
-      setSelectedEndpoint: (selectedEndpoint) =>
-        set(() => ({ selectedEndpoint })),
+      setSelectedEndpoint: (selectedEndpoint) => set({ selectedEndpoint }),
+      isEndpointActive: false,
+      setIsEndpointActive: (isEndpointActive) => set({ isEndpointActive }),
+      isEndpointLoading: true,
+      setIsEndpointLoading: (isEndpointLoading) => set({ isEndpointLoading }),
+
+      // Entity selection
       agents: [],
       setAgents: (agents) => set({ agents }),
       teams: [],
       setTeams: (teams) => set({ teams }),
       selectedModel: '',
-      setSelectedModel: (selectedModel) => set(() => ({ selectedModel })),
+      setSelectedModel: (selectedModel) => set({ selectedModel }),
       selectedTeamId: null,
-      setSelectedTeamId: (teamId) => set(() => ({ selectedTeamId: teamId })),
+      setSelectedTeamId: (selectedTeamId) => set({ selectedTeamId }),
       selectedEntityType: null,
-      setSelectedEntityType: (type) =>
-        set(() => ({ selectedEntityType: type })),
+      setSelectedEntityType: (selectedEntityType) =>
+        set({ selectedEntityType }),
       selectedTeamDetails: null,
-      setSelectedTeamDetails: (team) =>
-        set(() => ({ selectedTeamDetails: team })),
-      sessionsData: null,
-      setSessionsData: (sessionsData) =>
+      setSelectedTeamDetails: (selectedTeamDetails) =>
+        set({ selectedTeamDetails }),
+      hasStorage: false,
+      setHasStorage: (hasStorage) => set({ hasStorage }),
+
+      // Chat
+      chatInputRef: { current: null },
+      messages: [],
+      setMessages: (value) =>
+        set((state) => ({ messages: resolveValue(value, state.messages) })),
+      activeToolCalls: {},
+      setActiveToolCalls: (value) =>
         set((state) => ({
-          sessionsData:
-            typeof sessionsData === 'function'
-              ? sessionsData(state.sessionsData)
-              : sessionsData
+          activeToolCalls: resolveValue(value, state.activeToolCalls)
+        })),
+
+      // Sessions
+      sessionsData: null,
+      setSessionsData: (value) =>
+        set((state) => ({
+          sessionsData: resolveValue(value, state.sessionsData)
         })),
       isSessionsLoading: false,
-      setIsSessionsLoading: (isSessionsLoading) =>
-        set(() => ({ isSessionsLoading }))
+      setIsSessionsLoading: (isSessionsLoading) => set({ isSessionsLoading })
     }),
     {
       name: 'endpoint-storage',

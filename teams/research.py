@@ -1,26 +1,21 @@
 from agno.team import Team
 from agno.tools.reasoning import ReasoningTools
 from models import team_model
-from storage.config import get_storage, get_memory
+from storage.config import get_db, get_memory_manager
 from agents import WebSearcher, RedditResearcher, AcademicResearcher
 
 
 ResearchTeam = Team(
     name="Research Team",
-    team_id="research_team",
-    mode="collaborate",
+    id="research_team",
     model=team_model,
     members=[WebSearcher, RedditResearcher, AcademicResearcher],
-    add_member_tools_to_system_message=False,
-    debug_mode=True,
-    # enable_agentic_context=True,
-    # enable_team_history=True,
+    delegate_to_all_members=True,  # Replaced mode="collaborate"
+    share_member_interactions=True,  # Allow members to see each other's responses
     markdown=True,
-    memory=get_memory(),
+    memory_manager=get_memory_manager(),
+    db=get_db(),
+    debug_mode=True,
     show_members_responses=True,
-    show_tool_calls=True,
-    storage=get_storage("research_team"),
-    # telemetry=False,
-    # monitoring=False,
-    # tools=[ReasoningTools(add_instructions=True)],
+    tools=[ReasoningTools(add_instructions=True)],
 )

@@ -1,8 +1,10 @@
+"""OpenAI-compatible chat completions endpoint backed by Agno teams."""
+
 from __future__ import annotations
 
 import time
-from typing import List, Optional
 
+from agno.team import Team
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
@@ -10,67 +12,79 @@ from teams import HackerNewsTeam, ResearchTeam
 
 router = APIRouter()
 
+TEAM_REGISTRY: dict[str, Team] = {
+    "hackernews": HackerNewsTeam,
+    "hn": HackerNewsTeam,
+    "research": ResearchTeam,
+}
+DEFAULT_TEAM = ResearchTeam
+
+
+# ---------------------------------------------------------------------------
+# Request / Response models
+# ---------------------------------------------------------------------------
+
+
 class ChatMessage(BaseModel):
-    role: str
-    content: str
+    """A single message in a chat conversation."""
+
+    role: str = Field(..., description="Message role (system, user, or assistant)")
+    content: str = Field(..., description="Message content")
+
 
 class ChatCompletionRequest(BaseModel):
+    """OpenAI-compatible chat completion request."""
+
     model: str = Field(..., description="Model or team identifier")
-    messages: List[ChatMessage]
-    stream: Optional[bool] = False
-
-class CompletionRequest(BaseModel):
-    model: str = Field(..., description="Model or team identifier")
-    prompt: str
-    stream: Optional[bool] = False
+    messages: list[ChatMessage] = Field(..., description="Conversation messages")
+    stream: bool = Field(default=False, description="Whether to stream the response")
 
 
-def _select_team(model: str):
-    if "hackernews" in model.lower() or "hn" in model.lower():
-        return HackerNewsTeam
-    return ResearchTeam
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
 
 
-def _run_team(team, prompt: str, stream: bool):
+def _select_team(model: str) -> Team:
+    """Resolve a model string to an Agno Team instance."""
+    model_lower = model.lower()
+    for keyword, team in TEAM_REGISTRY.items():
+        if keyword in model_lower:
+            return team
+    return DEFAULT_TEAM
+
+
+def _extract_user_prompt(messages: list[ChatMessage]) -> str:
+    """Concatenate all user messages into a single prompt string."""
+    return "\n".join(m.content for m in messages if m.role == "user")
+
+
+def _run_team(team: Team, prompt: str, stream: bool) -> str:
+    """Execute a team run and return the response content as a string."""
     try:
-        resp = team.run(
-            message=prompt,
-            stream=stream,
-            session_id=None,  # Could generate a session ID if needed
-            user_id=None,
-        )
+        resp = team.run(message=prompt, stream=stream)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
     if stream:
-        # For streaming responses, need to handle differently
-        # The playground uses team_chat_response_streamer
-        content = "".join(
-            r.content for r in resp if getattr(r, "content", None)
-        )
-    else:
-        # Non-streaming responses return a RunResponse object
-        if hasattr(resp, 'content'):
-            content = resp.content
-        elif hasattr(resp, 'to_dict'):
-            # RunResponse object - extract content
-            resp_dict = resp.to_dict()
-            content = resp_dict.get('content', str(resp_dict))
-        else:
-            content = str(resp)
-    return content
+        return "".join(chunk.content for chunk in resp if chunk.content)
+
+    return getattr(resp, "content", None) or str(resp)
 
 
-@router.post("/v1/chat/completions")
-async def chat_completions(req: ChatCompletionRequest):
-    team = _select_team(req.model)
-    prompt = "\n".join(m.content for m in req.messages if m.role == "user")
-    content = _run_team(team, prompt, req.stream or False)
+# ---------------------------------------------------------------------------
+# Endpoints
+# ---------------------------------------------------------------------------
+
+
+def _build_response(model: str, content: str) -> dict:
+    """Build an OpenAI-compatible chat completion response."""
+    timestamp = int(time.time())
     return {
-        "id": f"chatcmpl-{int(time.time()*1000)}",
+        "id": f"chatcmpl-{timestamp * 1000}",
         "object": "chat.completion",
-        "created": int(time.time()),
-        "model": req.model,
+        "created": timestamp,
+        "model": model,
         "choices": [
             {
                 "index": 0,
@@ -80,3 +94,11 @@ async def chat_completions(req: ChatCompletionRequest):
         ],
     }
 
+
+@router.post("/v1/chat/completions")
+async def chat_completions(req: ChatCompletionRequest) -> dict:
+    """Return an OpenAI-compatible chat completion response."""
+    team = _select_team(req.model)
+    prompt = _extract_user_prompt(req.messages)
+    content = _run_team(team, prompt, req.stream)
+    return _build_response(req.model, content)

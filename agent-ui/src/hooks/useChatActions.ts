@@ -1,12 +1,11 @@
 import { useCallback } from 'react'
-import { toast } from 'sonner'
 
 import { usePlaygroundStore } from '../store'
 
-import {
+import type {
   ComboboxAgent,
   ComboboxTeam,
-  type PlaygroundChatMessage
+  PlaygroundChatMessage
 } from '@/types/playground'
 import {
   getPlaygroundAgentsAPI,
@@ -39,35 +38,6 @@ const useChatActions = () => {
   const [agentId, setAgentId] = useQueryState('agent')
   const [teamId, setTeamId] = useQueryState('team')
 
-  const getStatus = useCallback(async () => {
-    try {
-      const status = await getPlaygroundStatusAPI(selectedEndpoint)
-      return status
-    } catch {
-      return 503
-    }
-  }, [selectedEndpoint])
-
-  const getAgents = useCallback(async () => {
-    try {
-      const agents = await getPlaygroundAgentsAPI(selectedEndpoint)
-      return agents
-    } catch {
-      toast.error('Error fetching agents')
-      return []
-    }
-  }, [selectedEndpoint])
-
-  const getTeams = useCallback(async () => {
-    try {
-      const teams = await getPlaygroundTeamsAPI(selectedEndpoint)
-      return teams
-    } catch {
-      toast.error('Error fetching teams')
-      return []
-    }
-  }, [selectedEndpoint])
-
   const clearChat = useCallback(() => {
     setMessages([])
     setSessionId(null)
@@ -75,9 +45,7 @@ const useChatActions = () => {
   }, [])
 
   const focusChatInput = useCallback(() => {
-    setTimeout(() => {
-      requestAnimationFrame(() => chatInputRef?.current?.focus())
-    }, 0)
+    requestAnimationFrame(() => chatInputRef?.current?.focus())
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -88,89 +56,111 @@ const useChatActions = () => {
     [setMessages]
   )
 
+  /** Reset selection state to empty/inactive */
+  const resetSelectionState = useCallback(() => {
+    setSelectedModel('')
+    setHasStorage(false)
+    setSelectedTeamId(null)
+    setSelectedEntityType(null)
+  }, [setSelectedModel, setHasStorage, setSelectedTeamId, setSelectedEntityType])
+
+  /** Select an entity (team or agent) and update related state */
+  const selectEntity = useCallback(
+    (
+      entity: ComboboxAgent | ComboboxTeam,
+      type: 'agent' | 'team'
+    ) => {
+      setSelectedModel(entity.model.provider || '')
+      setHasStorage(!!entity.storage)
+      setSelectedEntityType(type)
+
+      if (type === 'team') {
+        setTeamId(entity.value)
+        setSelectedTeamId(entity.value)
+      } else {
+        setAgentId(entity.value)
+        setSelectedTeamId(null)
+      }
+    },
+    [
+      setSelectedModel,
+      setHasStorage,
+      setSelectedEntityType,
+      setTeamId,
+      setSelectedTeamId,
+      setAgentId
+    ]
+  )
+
   const initializePlayground = useCallback(async () => {
     setIsEndpointLoading(true)
-    try {
-      const status = await getStatus()
-      let agents: ComboboxAgent[] = []
-      let teams: ComboboxTeam[] = []
-      if (status === 200) {
-        setIsEndpointActive(true)
-        teams = await getTeams()
-        agents = await getAgents()
 
-        if (teams.length > 0 && !agentId && !teamId) {
-          const firstTeam = teams[0]
-          setTeamId(firstTeam.value)
-          setSelectedTeamId(firstTeam.value)
-          setSelectedModel(firstTeam.model.provider || '')
-          setHasStorage(!!firstTeam.storage)
-          setSelectedEntityType('team')
-        } else if (agents.length > 0 && !agentId && !teamId) {
-          const firstAgent = agents[0]
-          setAgentId(firstAgent.value)
-          setSelectedModel(firstAgent.model.provider || '')
-          setHasStorage(!!firstAgent.storage)
-          setSelectedTeamId(null)
-          setSelectedEntityType('agent')
-        } else {
-          if (!agentId && !teamId) {
-            setSelectedModel('')
-            setHasStorage(false)
-            setSelectedTeamId(null)
-            setSelectedEntityType(null)
-          }
-        }
-      } else {
+    try {
+      const status = await getPlaygroundStatusAPI(selectedEndpoint)
+
+      if (status !== 200) {
         setIsEndpointActive(false)
-        setSelectedModel('')
-        setHasStorage(false)
-        setSelectedTeamId(null)
-        setSelectedEntityType(null)
+        resetSelectionState()
         setAgentId(null)
         setTeamId(null)
+        setAgents([])
+        setTeams([])
+        return { agents: [], teams: [] }
       }
+
+      setIsEndpointActive(true)
+
+      // Fetch agents and teams in parallel
+      const [teams, agents] = await Promise.all([
+        getPlaygroundTeamsAPI(selectedEndpoint),
+        getPlaygroundAgentsAPI(selectedEndpoint)
+      ])
+
       setAgents(agents)
       setTeams(teams)
+
+      // Auto-select first entity if none selected
+      if (!agentId && !teamId) {
+        if (teams.length > 0) {
+          selectEntity(teams[0], 'team')
+        } else if (agents.length > 0) {
+          selectEntity(agents[0], 'agent')
+        } else {
+          resetSelectionState()
+        }
+      }
+
       return { agents, teams }
     } catch (error) {
       console.error('Error initializing playground:', error)
       setIsEndpointActive(false)
-      setSelectedModel('')
-      setHasStorage(false)
-      setSelectedTeamId(null)
-      setSelectedEntityType(null)
+      resetSelectionState()
       setAgentId(null)
       setTeamId(null)
       setAgents([])
       setTeams([])
+      return { agents: [], teams: [] }
     } finally {
       setIsEndpointLoading(false)
     }
   }, [
-    getStatus,
-    getAgents,
-    getTeams,
+    selectedEndpoint,
+    agentId,
+    teamId,
     setIsEndpointActive,
     setIsEndpointLoading,
     setAgents,
     setTeams,
     setAgentId,
-    setSelectedModel,
-    setHasStorage,
-    setSelectedTeamId,
-    setSelectedEntityType,
     setTeamId,
-    agentId,
-    teamId
+    selectEntity,
+    resetSelectionState
   ])
 
   return {
     clearChat,
     addMessage,
-    getAgents,
     focusChatInput,
-    getTeams,
     initializePlayground
   }
 }

@@ -5,6 +5,7 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
+    "a2a-sdk>=0.3.22",
     "agno>=1.5.1",
     "aiohttp>=3.11.18",
     "anthropic>=0.51.0",
@@ -12,8 +13,10 @@ dependencies = [
     "azure-ai-inference>=1.0.0b9",
     "chonkie[st]>=1.0.8",
     "cohere>=5.15.0",
-    "duckduckgo-search>=8.0.2",
+    "ddgs>=9.10.0",
+
     "fastapi[standard]>=0.115.12",
+    "httpx>=0.28.1",
     "lancedb>=0.22.1",
     "lxml-html-clean>=0.4.2",
     "lxml[clean]>=5.4.0",
@@ -21,7 +24,9 @@ dependencies = [
     "ollama>=0.4.8",
     "openai>=1.79.0",
     "praw>=7.8.1",
-    "pylance>=0.27.2",
+    "python-dotenv>=1.0.0",
+    "pyjwt>=2.11.0",
+
     "sqlalchemy>=2.0.41",
     "tantivy>=0.24.0",
     "yfinance>=0.2.61",

@@ -1,15 +1,20 @@
-import { useCallback } from 'react'
+import { useCallback, useRef } from 'react'
 
 import { APIRoutes } from '@/api/routes'
-
 import useChatActions from '@/hooks/useChatActions'
 import { usePlaygroundStore } from '../store'
-import { RunEvent, type RunResponse } from '@/types/playground'
+import {
+  RunEvent,
+  type RunResponse,
+  type ToolCall,
+  type PlaygroundChatMessage
+} from '@/types/playground'
 import { constructEndpointUrl } from '@/lib/constructEndpointUrl'
 import useAIResponseStream from './useAIResponseStream'
-import { ToolCall } from '@/types/playground'
 import { useQueryState } from 'nuqs'
 import { getJsonMarkdown } from '@/lib/utils'
+
+
 
 const useAIChatStreamHandler = () => {
   const setMessages = usePlaygroundStore((state) => state.setMessages)
@@ -27,80 +32,313 @@ const useAIChatStreamHandler = () => {
   const setIsStreaming = usePlaygroundStore((state) => state.setIsStreaming)
   const setSessionsData = usePlaygroundStore((state) => state.setSessionsData)
   const hasStorage = usePlaygroundStore((state) => state.hasStorage)
-  const activeToolCalls = usePlaygroundStore((state) => state.activeToolCalls)
   const setActiveToolCalls = usePlaygroundStore(
     (state) => state.setActiveToolCalls
   )
   const { streamResponse } = useAIResponseStream()
 
-  const updateMessagesWithErrorState = useCallback(() => {
-    setMessages((prevMessages) => {
-      const newMessages = [...prevMessages]
-      const lastMessage = newMessages[newMessages.length - 1]
-      if (lastMessage && lastMessage.role === 'agent') {
-        lastMessage.streamingError = true
+  // Use ref for active tool calls to avoid stale closure issues
+  const activeToolCallsRef = useRef<Record<string, ToolCall>>({})
+
+  /** Mark the last agent message as having a streaming error */
+  const markLastMessageAsError = useCallback(() => {
+    setMessages((prev) => {
+      const messages = [...prev]
+      const last = messages[messages.length - 1]
+      if (last?.role === 'agent') {
+        last.streamingError = true
       }
-      return newMessages
+      return messages
     })
   }, [setMessages])
+
+  /** Remove a session from the sessions list */
+  const removeSession = useCallback(
+    (sessionIdToRemove: string | null) => {
+      if (!hasStorage || !sessionIdToRemove) return
+      setSessionsData(
+        (prev) => prev?.filter((s) => s.session_id !== sessionIdToRemove) ?? null
+      )
+    },
+    [hasStorage, setSessionsData]
+  )
+
+  /** Handle error state consistently */
+  const handleError = useCallback(
+    (message: string, newSessionId: string | null) => {
+      setActiveToolCalls({})
+      activeToolCallsRef.current = {}
+      markLastMessageAsError()
+      setStreamingErrorMessage(message)
+      removeSession(newSessionId)
+    },
+    [
+      setActiveToolCalls,
+      markLastMessageAsError,
+      setStreamingErrorMessage,
+      removeSession
+    ]
+  )
+
+  /** Update the last agent message with new data */
+  const updateLastAgentMessage = useCallback(
+    (updater: (message: PlaygroundChatMessage) => PlaygroundChatMessage) => {
+      setMessages((prev) => {
+        const messages = [...prev]
+        const last = messages[messages.length - 1]
+        if (last?.role === 'agent') {
+          messages[messages.length - 1] = updater(last)
+        }
+        return messages
+      })
+    },
+    [setMessages]
+  )
+
+  /** Build the API URL for the run endpoint */
+  const buildRunUrl = useCallback(() => {
+    const endpointUrl = constructEndpointUrl(selectedEndpoint)
+
+    if (selectedEntityType === 'team' && teamId) {
+      return APIRoutes.TeamRun(endpointUrl, teamId)
+    }
+    if (selectedEntityType === 'agent' && agentId) {
+      return APIRoutes.AgentRun(endpointUrl).replace('{agent_id}', agentId)
+    }
+    return null
+  }, [selectedEndpoint, selectedEntityType, teamId, agentId])
+
+  /** Handle RunStarted/ReasoningStarted events */
+  const handleRunStarted = useCallback(
+    (chunk: RunResponse, messageText: string) => {
+      const chunkSessionId = chunk.session_id as string
+      setSessionId(chunkSessionId)
+
+      if (
+        hasStorage &&
+        chunkSessionId &&
+        (!sessionId || sessionId !== chunkSessionId)
+      ) {
+        setSessionsData((prev) => {
+          if (prev?.some((s) => s.session_id === chunkSessionId)) return prev
+          return [
+            {
+              session_id: chunkSessionId,
+              title: messageText,
+              created_at: chunk.created_at
+            },
+            ...(prev ?? [])
+          ]
+        })
+      }
+
+      return chunkSessionId
+    },
+    [hasStorage, sessionId, setSessionId, setSessionsData]
+  )
+
+  /** Handle ToolCallStarted event */
+  const handleToolCallStarted = useCallback(
+    (chunk: RunResponse) => {
+      const toolData = chunk.tool
+      if (!toolData?.tool_name || !toolData?.tool_call_id) return
+
+      const newToolCall: ToolCall = {
+        role: 'tool',
+        content: null,
+        tool_call_id: toolData.tool_call_id,
+        tool_name: toolData.tool_name,
+        tool_args: toolData.tool_args || {},
+        tool_call_error: false,
+        metrics: { time: 0 },
+        created_at: chunk.created_at
+      }
+
+      activeToolCallsRef.current[toolData.tool_call_id] = newToolCall
+      setActiveToolCalls((prev) => ({
+        ...prev,
+        [toolData.tool_call_id]: newToolCall
+      }))
+    },
+    [setActiveToolCalls]
+  )
+
+  /** Handle ToolCallCompleted event */
+  const handleToolCallCompleted = useCallback(
+    (chunk: RunResponse) => {
+      const toolData = chunk.tool
+      if (!toolData?.tool_call_id) return
+
+      const activeToolCall = activeToolCallsRef.current[toolData.tool_call_id]
+
+      // Remove from active calls
+      delete activeToolCallsRef.current[toolData.tool_call_id]
+      setActiveToolCalls((prev) => {
+        const updated = { ...prev }
+        delete updated[toolData.tool_call_id]
+        return updated
+      })
+
+      // Add completed tool call to message
+      const completedToolCall: ToolCall = {
+        role: 'tool',
+        content: toolData.result || null,
+        tool_call_id: toolData.tool_call_id,
+        tool_name: activeToolCall?.tool_name || toolData.tool_name || 'unknown',
+        tool_args: activeToolCall?.tool_args || toolData.tool_args || {},
+        tool_call_error: toolData.tool_call_error || false,
+        metrics: { time: toolData.metrics?.duration || 0 },
+        created_at: chunk.created_at
+      }
+
+      updateLastAgentMessage((msg) => ({
+        ...msg,
+        tool_calls: [...(msg.tool_calls || []), completedToolCall]
+      }))
+    },
+    [setActiveToolCalls, updateLastAgentMessage]
+  )
+
+  /** Handle RunResponse event (streaming content) */
+  const handleRunResponse = useCallback(
+    (chunk: RunResponse, lastContentRef: { current: string }) => {
+      updateLastAgentMessage((msg) => {
+        const updated = { ...msg }
+
+        // Handle string content
+        if (typeof chunk.content === 'string') {
+          const uniqueContent = chunk.content.replace(lastContentRef.current, '')
+          updated.content += uniqueContent
+          lastContentRef.current = chunk.content
+
+          if (chunk.tools?.length) {
+            updated.tool_calls = [...chunk.tools]
+          }
+          if (chunk.extra_data?.reasoning_steps) {
+            updated.extra_data = {
+              ...updated.extra_data,
+              reasoning_steps: chunk.extra_data.reasoning_steps
+            }
+          }
+          if (chunk.extra_data?.references) {
+            updated.extra_data = {
+              ...updated.extra_data,
+              references: chunk.extra_data.references
+            }
+          }
+          updated.created_at = chunk.created_at ?? updated.created_at
+          if (chunk.images) updated.images = chunk.images
+          if (chunk.videos) updated.videos = chunk.videos
+          if (chunk.audio) updated.audio = chunk.audio
+        }
+        // Handle object content (JSON)
+        else if (chunk.content !== null && typeof chunk.content === 'object') {
+          const jsonBlock = getJsonMarkdown(chunk.content)
+          updated.content += jsonBlock
+          lastContentRef.current = jsonBlock
+        }
+        // Handle audio transcript
+        else if (chunk.response_audio?.transcript) {
+          updated.response_audio = {
+            ...updated.response_audio,
+            transcript:
+              (updated.response_audio?.transcript || '') +
+              chunk.response_audio.transcript
+          }
+        }
+
+        return updated
+      })
+    },
+    [updateLastAgentMessage]
+  )
+
+  /** Handle RunCompleted event */
+  const handleRunCompleted = useCallback(
+    (chunk: RunResponse) => {
+      setActiveToolCalls({})
+      activeToolCallsRef.current = {}
+
+      updateLastAgentMessage((msg) => {
+        let content: string
+        if (typeof chunk.content === 'string') {
+          content = chunk.content
+        } else {
+          try {
+            content = JSON.stringify(chunk.content)
+          } catch {
+            content = 'Error parsing response'
+          }
+        }
+
+        return {
+          ...msg,
+          content,
+          tool_calls:
+            chunk.tools?.length ? [...chunk.tools] : msg.tool_calls,
+          images: chunk.images ?? msg.images,
+          videos: chunk.videos ?? msg.videos,
+          response_audio: chunk.response_audio,
+          created_at: chunk.created_at ?? msg.created_at,
+          extra_data: {
+            reasoning_steps:
+              chunk.extra_data?.reasoning_steps ??
+              msg.extra_data?.reasoning_steps,
+            references:
+              chunk.extra_data?.references ?? msg.extra_data?.references
+          }
+        }
+      })
+    },
+    [setActiveToolCalls, updateLastAgentMessage]
+  )
 
   const handleStreamResponse = useCallback(
     async (input: string | FormData, stream: boolean = true) => {
       setIsStreaming(true)
 
+      // Prepare form data
       const formData = input instanceof FormData ? input : new FormData()
       if (typeof input === 'string') {
         formData.append('message', input)
       }
+      const messageText = formData.get('message') as string
 
-      setMessages((prevMessages) => {
-        if (prevMessages.length >= 2) {
-          const lastMessage = prevMessages[prevMessages.length - 1]
-          const secondLastMessage = prevMessages[prevMessages.length - 2]
+      // Remove previous error message pair if retrying
+      setMessages((prev) => {
+        if (prev.length >= 2) {
+          const last = prev[prev.length - 1]
+          const secondLast = prev[prev.length - 2]
           if (
-            lastMessage.role === 'agent' &&
-            lastMessage.streamingError &&
-            secondLastMessage.role === 'user'
+            last.role === 'agent' &&
+            last.streamingError &&
+            secondLast.role === 'user'
           ) {
-            return prevMessages.slice(0, -2)
+            return prev.slice(0, -2)
           }
         }
-        return prevMessages
+        return prev
       })
 
-      addMessage({
-        role: 'user',
-        content: formData.get('message') as string,
-        created_at: Math.floor(Date.now() / 1000)
-      })
-
+      // Add user and placeholder agent messages
+      const now = Math.floor(Date.now() / 1000)
+      addMessage({ role: 'user', content: messageText, created_at: now })
       addMessage({
         role: 'agent',
         content: '',
         tool_calls: [],
         streamingError: false,
-        created_at: Math.floor(Date.now() / 1000) + 1
+        created_at: now + 1
       })
 
-      let lastContent = ''
+      // Track content for deduplication
+      const lastContentRef = { current: '' }
       let newSessionId = sessionId
+
       try {
-        const endpointUrl = constructEndpointUrl(selectedEndpoint)
-
-        let playgroundRunUrl: string | null = null
-
-        if (selectedEntityType === 'team' && teamId) {
-          playgroundRunUrl = APIRoutes.TeamRun(endpointUrl, teamId)
-        } else if (selectedEntityType === 'agent' && agentId) {
-          playgroundRunUrl = APIRoutes.AgentRun(endpointUrl).replace(
-            '{agent_id}',
-            agentId
-          )
-        }
-
-        if (!playgroundRunUrl) {
-          updateMessagesWithErrorState()
-          setStreamingErrorMessage('Please select an agent or team first.')
+        const runUrl = buildRunUrl()
+        if (!runUrl) {
+          handleError('Please select an agent or team first.', null)
           setIsStreaming(false)
           return
         }
@@ -108,278 +346,58 @@ const useAIChatStreamHandler = () => {
         formData.append('stream', stream.toString())
         formData.append('session_id', sessionId ?? '')
 
-        // Clear active tool calls when starting a new request
+        // Reset active tool calls
         setActiveToolCalls({})
+        activeToolCallsRef.current = {}
 
         await streamResponse({
-          apiUrl: playgroundRunUrl,
+          apiUrl: runUrl,
           requestBody: formData,
           onChunk: (chunk: RunResponse) => {
-            if (
-              chunk.event === RunEvent.RunStarted ||
-              chunk.event === RunEvent.ReasoningStarted
-            ) {
-              newSessionId = chunk.session_id as string
-              setSessionId(chunk.session_id as string)
-              if (
-                hasStorage &&
-                (!sessionId || sessionId !== chunk.session_id) &&
-                chunk.session_id
-              ) {
-                const sessionData = {
-                  session_id: chunk.session_id as string,
-                  title: formData.get('message') as string,
-                  created_at: chunk.created_at
-                }
-                setSessionsData((prevSessionsData) => {
-                  const sessionExists = prevSessionsData?.some(
-                    (session) => session.session_id === chunk.session_id
-                  )
-                  if (sessionExists) {
-                    return prevSessionsData
-                  }
-                  return [sessionData, ...(prevSessionsData ?? [])]
-                })
-              }
-            } else if (chunk.event === RunEvent.ToolCallStarted) {
-              // Handle tool call started event
-              if (chunk.event_data && typeof chunk.event_data === 'object') {
-                const toolData = chunk.event_data as {
-                  tool_name?: string
-                  tool_call_id?: string
-                  tool_args?: Record<string, string>
-                }
+            switch (chunk.event) {
+              // Agent events
+              case RunEvent.RunStarted:
+              case RunEvent.ReasoningStarted:
+              // Team events
+              case RunEvent.TeamRunStarted:
+              case RunEvent.TeamReasoningStarted:
+                newSessionId = handleRunStarted(chunk, messageText)
+                break
 
-                if (toolData.tool_name && toolData.tool_call_id) {
-                  const newToolCall: ToolCall = {
-                    role: 'tool',
-                    content: null,
-                    tool_call_id: toolData.tool_call_id,
-                    tool_name: toolData.tool_name,
-                    tool_args: toolData.tool_args || {},
-                    tool_call_error: false,
-                    metrics: { time: 0 },
-                    created_at: chunk.created_at
-                  }
+              case RunEvent.ToolCallStarted:
+              case RunEvent.TeamToolCallStarted:
+                handleToolCallStarted(chunk)
+                break
 
-                  setActiveToolCalls((prev) => ({
-                    ...prev,
-                    [toolData.tool_call_id!]: newToolCall
-                  }))
-                }
-              }
-            } else if (chunk.event === RunEvent.ToolCallCompleted) {
-              // Handle tool call completed event
-              if (chunk.event_data && typeof chunk.event_data === 'object') {
-                const toolData = chunk.event_data as {
-                  tool_call_id?: string
-                  content?: string | null
-                  error?: boolean
-                  time?: number
-                }
+              case RunEvent.ToolCallCompleted:
+              case RunEvent.TeamToolCallCompleted:
+                handleToolCallCompleted(chunk)
+                break
 
-                if (toolData.tool_call_id) {
-                  // Get tool details before removing from active calls
-                  const activeToolCall = activeToolCalls[toolData.tool_call_id]
+              case RunEvent.RunResponse:
+              case RunEvent.TeamRunContent:
+                handleRunResponse(chunk, lastContentRef)
+                break
 
-                  // Remove from active tool calls
-                  setActiveToolCalls((prev) => {
-                    const newActiveCalls = { ...prev }
-                    delete newActiveCalls[toolData.tool_call_id!]
-                    return newActiveCalls
-                  })
+              case RunEvent.RunError:
+              case RunEvent.TeamRunError:
+                handleError(chunk.content as string, newSessionId)
+                break
 
-                  // Add to completed tool calls in the message
-                  setMessages((prevMessages) => {
-                    const newMessages = [...prevMessages]
-                    const lastMessage = newMessages[newMessages.length - 1]
-
-                    if (lastMessage && lastMessage.role === 'agent') {
-                      // Find the tool call in active calls to get its details
-                      const toolCalls = [...(lastMessage.tool_calls || [])]
-
-                      // Add the completed tool call
-                      const completedToolCall: ToolCall = {
-                        role: 'tool',
-                        content: toolData.content || null,
-                        tool_call_id: toolData.tool_call_id!,
-                        tool_name: activeToolCall?.tool_name || 'unknown',
-                        tool_args: activeToolCall?.tool_args || {},
-                        tool_call_error: toolData.error || false,
-                        metrics: {
-                          time: toolData.time || 0
-                        },
-                        created_at: chunk.created_at
-                      }
-
-                      toolCalls.push(completedToolCall)
-                      lastMessage.tool_calls = toolCalls
-                    }
-
-                    return newMessages
-                  })
-                }
-              }
-            } else if (chunk.event === RunEvent.RunResponse) {
-              setMessages((prevMessages) => {
-                const newMessages = [...prevMessages]
-                const lastMessage = newMessages[newMessages.length - 1]
-                if (
-                  lastMessage &&
-                  lastMessage.role === 'agent' &&
-                  typeof chunk.content === 'string'
-                ) {
-                  const uniqueContent = chunk.content.replace(lastContent, '')
-                  lastMessage.content += uniqueContent
-                  lastContent = chunk.content
-
-                  const toolCalls: ToolCall[] = [...(chunk.tools ?? [])]
-                  if (toolCalls.length > 0) {
-                    lastMessage.tool_calls = toolCalls
-                  }
-                  if (chunk.extra_data?.reasoning_steps) {
-                    lastMessage.extra_data = {
-                      ...lastMessage.extra_data,
-                      reasoning_steps: chunk.extra_data.reasoning_steps
-                    }
-                  }
-
-                  if (chunk.extra_data?.references) {
-                    lastMessage.extra_data = {
-                      ...lastMessage.extra_data,
-                      references: chunk.extra_data.references
-                    }
-                  }
-
-                  lastMessage.created_at =
-                    chunk.created_at ?? lastMessage.created_at
-                  if (chunk.images) {
-                    lastMessage.images = chunk.images
-                  }
-                  if (chunk.videos) {
-                    lastMessage.videos = chunk.videos
-                  }
-                  if (chunk.audio) {
-                    lastMessage.audio = chunk.audio
-                  }
-                } else if (
-                  lastMessage &&
-                  lastMessage.role === 'agent' &&
-                  typeof chunk?.content !== 'string' &&
-                  chunk.content !== null
-                ) {
-                  const jsonBlock = getJsonMarkdown(chunk?.content)
-
-                  lastMessage.content += jsonBlock
-                  lastContent = jsonBlock
-                } else if (
-                  chunk.response_audio?.transcript &&
-                  typeof chunk.response_audio?.transcript === 'string'
-                ) {
-                  const transcript = chunk.response_audio.transcript
-                  lastMessage.response_audio = {
-                    ...lastMessage.response_audio,
-                    transcript:
-                      lastMessage.response_audio?.transcript + transcript
-                  }
-                }
-                return newMessages
-              })
-            } else if (chunk.event === RunEvent.RunError) {
-              // Clear active tool calls on error
-              setActiveToolCalls({})
-
-              updateMessagesWithErrorState()
-              const errorContent = chunk.content as string
-              setStreamingErrorMessage(errorContent)
-              if (hasStorage && newSessionId) {
-                setSessionsData(
-                  (prevSessionsData) =>
-                    prevSessionsData?.filter(
-                      (session) => session.session_id !== newSessionId
-                    ) ?? null
-                )
-              }
-            } else if (chunk.event === RunEvent.RunCompleted) {
-              // Clear active tool calls on completion
-              setActiveToolCalls({})
-
-              setMessages((prevMessages) => {
-                const newMessages = prevMessages.map((message, index) => {
-                  if (
-                    index === prevMessages.length - 1 &&
-                    message.role === 'agent'
-                  ) {
-                    let updatedContent: string
-                    if (typeof chunk.content === 'string') {
-                      updatedContent = chunk.content
-                    } else {
-                      try {
-                        updatedContent = JSON.stringify(chunk.content)
-                      } catch {
-                        updatedContent = 'Error parsing response'
-                      }
-                    }
-                    return {
-                      ...message,
-                      content: updatedContent,
-                      tool_calls:
-                        chunk.tools && chunk.tools.length > 0
-                          ? [...chunk.tools]
-                          : message.tool_calls,
-                      images: chunk.images ?? message.images,
-                      videos: chunk.videos ?? message.videos,
-                      response_audio: chunk.response_audio,
-                      created_at: chunk.created_at ?? message.created_at,
-                      extra_data: {
-                        reasoning_steps:
-                          chunk.extra_data?.reasoning_steps ??
-                          message.extra_data?.reasoning_steps,
-                        references:
-                          chunk.extra_data?.references ??
-                          message.extra_data?.references
-                      }
-                    }
-                  }
-                  return message
-                })
-                return newMessages
-              })
+              case RunEvent.RunCompleted:
+              case RunEvent.TeamRunCompleted:
+                handleRunCompleted(chunk)
+                break
             }
           },
-          onError: (error) => {
-            // Clear active tool calls on error
-            setActiveToolCalls({})
-
-            updateMessagesWithErrorState()
-            setStreamingErrorMessage(error.message)
-            if (hasStorage && newSessionId) {
-              setSessionsData(
-                (prevSessionsData) =>
-                  prevSessionsData?.filter(
-                    (session) => session.session_id !== newSessionId
-                  ) ?? null
-              )
-            }
-          },
+          onError: (error) => handleError(error.message, newSessionId),
           onComplete: () => {}
         })
       } catch (error) {
-        // Clear active tool calls on error
-        setActiveToolCalls({})
-
-        updateMessagesWithErrorState()
-        setStreamingErrorMessage(
-          error instanceof Error ? error.message : String(error)
+        handleError(
+          error instanceof Error ? error.message : String(error),
+          newSessionId
         )
-        if (hasStorage && newSessionId) {
-          setSessionsData(
-            (prevSessionsData) =>
-              prevSessionsData?.filter(
-                (session) => session.session_id !== newSessionId
-              ) ?? null
-          )
-        }
       } finally {
         focusChatInput()
         setIsStreaming(false)
@@ -388,21 +406,18 @@ const useAIChatStreamHandler = () => {
     [
       setMessages,
       addMessage,
-      updateMessagesWithErrorState,
-      selectedEndpoint,
+      sessionId,
+      buildRunUrl,
       streamResponse,
-      agentId,
-      teamId,
-      selectedEntityType,
-      setStreamingErrorMessage,
       setIsStreaming,
       focusChatInput,
-      setSessionsData,
-      sessionId,
-      setSessionId,
-      hasStorage,
-      activeToolCalls,
-      setActiveToolCalls
+      setActiveToolCalls,
+      handleError,
+      handleRunStarted,
+      handleToolCallStarted,
+      handleToolCallCompleted,
+      handleRunResponse,
+      handleRunCompleted
     ]
   )
 

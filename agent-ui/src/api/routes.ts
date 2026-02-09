@@ -1,43 +1,43 @@
 export const APIRoutes = {
   GetPlaygroundAgents: (PlaygroundApiUrl: string) =>
-    `${PlaygroundApiUrl}/v1/playground/agents`,
+    `${PlaygroundApiUrl}/agents`,
   AgentRun: (PlaygroundApiUrl: string) =>
-    `${PlaygroundApiUrl}/v1/playground/agents/{agent_id}/runs`,
+    `${PlaygroundApiUrl}/agents/{agent_id}/runs`,
   PlaygroundStatus: (PlaygroundApiUrl: string) =>
-    `${PlaygroundApiUrl}/v1/playground/status`,
+    `${PlaygroundApiUrl}/health`,
   GetPlaygroundSessions: (PlaygroundApiUrl: string, agentId: string) =>
-    `${PlaygroundApiUrl}/v1/playground/agents/${agentId}/sessions`,
+    `${PlaygroundApiUrl}/agents/${agentId}/sessions`,
   GetPlaygroundSession: (
     PlaygroundApiUrl: string,
     agentId: string,
     sessionId: string
   ) =>
-    `${PlaygroundApiUrl}/v1/playground/agents/${agentId}/sessions/${sessionId}`,
+    `${PlaygroundApiUrl}/agents/${agentId}/sessions/${sessionId}`,
 
   DeletePlaygroundSession: (
     PlaygroundApiUrl: string,
     agentId: string,
     sessionId: string
   ) =>
-    `${PlaygroundApiUrl}/v1/playground/agents/${agentId}/sessions/${sessionId}`,
+    `${PlaygroundApiUrl}/agents/${agentId}/sessions/${sessionId}`,
 
   GetPlayGroundTeams: (PlaygroundApiUrl: string) =>
-    `${PlaygroundApiUrl}/v1/playground/teams`,
+    `${PlaygroundApiUrl}/teams`,
   GetPlaygroundTeam: (PlaygroundApiUrl: string, teamId: string) =>
-    `${PlaygroundApiUrl}/v1/playground/teams/${teamId}`,
+    `${PlaygroundApiUrl}/teams/${teamId}`,
   TeamRun: (PlaygroundApiUrl: string, teamId: string) =>
-    `${PlaygroundApiUrl}/v1/playground/teams/${teamId}/runs`,
+    `${PlaygroundApiUrl}/teams/${teamId}/runs`,
   GetPlaygroundTeamSessions: (PlaygroundApiUrl: string, teamId: string) =>
-    `${PlaygroundApiUrl}/v1/playground/teams/${teamId}/sessions`,
+    `${PlaygroundApiUrl}/teams/${teamId}/sessions`,
   GetPlaygroundTeamSession: (
     PlaygroundApiUrl: string,
     teamId: string,
     sessionId: string
   ) =>
-    `${PlaygroundApiUrl}/v1/playground/teams/${teamId}/sessions/${sessionId}`,
+    `${PlaygroundApiUrl}/teams/${teamId}/sessions/${sessionId}`,
   DeletePlaygroundTeamSession: (
     PlaygroundApiUrl: string,
     teamId: string,
     sessionId: string
-  ) => `${PlaygroundApiUrl}/v1/playground/teams/${teamId}/sessions/${sessionId}`
+  ) => `${PlaygroundApiUrl}/teams/${teamId}/sessions/${sessionId}`
 }

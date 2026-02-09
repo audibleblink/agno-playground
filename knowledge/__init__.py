@@ -1,8 +1,9 @@
 """Knowledge base configuration and utilities."""
 
-from agno.vectordb.lancedb import LanceDb, SearchType
-from agno.reranker.cohere import CohereReranker
-from agno.embedder.ollama import OllamaEmbedder
+from agno.vectordb.lancedb import LanceDb
+from agno.vectordb.search import SearchType
+from agno.knowledge.reranker.cohere import CohereReranker
+from agno.knowledge.embedder.ollama import OllamaEmbedder
 from config import OLLAMA_API_BASE, VECTOR_DB_URI
 
 # Embedders and Reranker

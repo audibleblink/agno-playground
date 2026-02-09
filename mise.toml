@@ -1,0 +1,14 @@
+[tasks.ui]
+description = "Start the Next.js web UI (port 3000)"
+run = "cd agent-ui && pnpm run dev"
+
+[tasks.backend]
+description = "Start the Python FastAPI backend"
+run = "uv run main.py"
+
+[tasks.dev]
+description = "Start both frontend and backend"
+depends = ["ui", "backend"]
+
+[tools]
+pnpm = "latest"

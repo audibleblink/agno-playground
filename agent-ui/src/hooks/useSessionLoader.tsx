@@ -7,7 +7,7 @@ import {
 } from '@/api/playground'
 import { usePlaygroundStore } from '../store'
 import { toast } from 'sonner'
-import {
+import type {
   PlaygroundChatMessage,
   ToolCall,
   ReasoningMessage,
@@ -15,22 +15,82 @@ import {
 } from '@/types/playground'
 import { getJsonMarkdown } from '@/lib/utils'
 
-interface SessionResponse {
-  session_id: string
-  agent_id: string
-  user_id: string | null
-  runs?: ChatEntry[]
-  memory: {
-    runs?: ChatEntry[]
-    chats?: ChatEntry[]
-  }
-  agent_data: Record<string, unknown>
-}
-
 interface LoaderArgs {
   entityType: 'agent' | 'team' | null
   agentId?: string | null
   teamId?: string | null
+}
+
+/** Extract tool calls from reasoning messages */
+const extractToolCallsFromReasoning = (
+  reasoningMessages: ReasoningMessage[] = []
+): ToolCall[] =>
+  reasoningMessages
+    .filter((msg) => msg.role === 'tool')
+    .map((msg) => ({
+      role: 'tool' as const,
+      content: msg.content,
+      tool_call_id: msg.tool_call_id ?? '',
+      tool_name: msg.tool_name ?? '',
+      tool_args: msg.tool_args ?? {},
+      tool_call_error: msg.tool_call_error ?? false,
+      metrics: msg.metrics ?? { time: 0 },
+      created_at: msg.created_at ?? Math.floor(Date.now() / 1000)
+    }))
+
+/** Convert a chat run to playground messages */
+const chatRunToMessages = (run: ChatEntry): PlaygroundChatMessage[] => {
+  const messages: PlaygroundChatMessage[] = []
+
+  if (run.message) {
+    messages.push({
+      role: 'user',
+      content: run.message.content ?? '',
+      created_at: run.message.created_at
+    })
+  }
+
+  if (run.response) {
+    const toolCalls = [
+      ...(run.response.tools ?? []),
+      ...extractToolCallsFromReasoning(run.response.extra_data?.reasoning_messages)
+    ]
+
+    messages.push({
+      role: 'agent',
+      content: (run.response.content as string) ?? '',
+      tool_calls: toolCalls.length > 0 ? toolCalls : undefined,
+      extra_data: run.response.extra_data,
+      images: run.response.images,
+      videos: run.response.videos,
+      audio: run.response.audio,
+      response_audio: run.response.response_audio,
+      created_at: run.response.created_at
+    })
+  }
+
+  return messages
+}
+
+/** Normalize message content to string format */
+const normalizeMessageContent = (
+  message: PlaygroundChatMessage
+): PlaygroundChatMessage => {
+  // Handle array content (multimodal messages)
+  if (Array.isArray(message.content)) {
+    const textContent = (message.content as Array<{ type: string; text?: string }>)
+      .filter((item) => item.type === 'text')
+      .map((item) => item.text ?? '')
+      .join(' ')
+    return { ...message, content: textContent }
+  }
+
+  // Handle object content
+  if (typeof message.content !== 'string') {
+    return { ...message, content: getJsonMarkdown(message.content) }
+  }
+
+  return message
 }
 
 const useSessionLoader = () => {
@@ -66,10 +126,10 @@ const useSessionLoader = () => {
 
   const getSession = useCallback(
     async ({ entityType, agentId, teamId }: LoaderArgs, sessionId: string) => {
-      if (!selectedEndpoint || !sessionId) return
+      if (!selectedEndpoint || !sessionId) return null
 
       try {
-        const response: SessionResponse =
+        const response =
           entityType === 'team'
             ? await getPlaygroundTeamSessionAPI(
                 selectedEndpoint,
@@ -82,89 +142,17 @@ const useSessionLoader = () => {
                 sessionId
               )
 
-        if (response) {
-          const sessionHistory = response.runs
-            ? response.runs
-            : response.memory.runs
+        if (!response) return null
 
-          if (sessionHistory && Array.isArray(sessionHistory)) {
-            const messagesForPlayground = sessionHistory.flatMap((run) => {
-              const filteredMessages: PlaygroundChatMessage[] = []
+        const sessionHistory = response.runs ?? response.memory.runs
+        if (!Array.isArray(sessionHistory)) return null
 
-              if (run.message) {
-                filteredMessages.push({
-                  role: 'user',
-                  content: run.message.content ?? '',
-                  created_at: run.message.created_at
-                })
-              }
+        const messages = sessionHistory
+          .flatMap(chatRunToMessages)
+          .map(normalizeMessageContent)
 
-              if (run.response) {
-                const toolCalls = [
-                  ...(run.response.tools ?? []),
-                  ...(run.response.extra_data?.reasoning_messages ?? []).reduce(
-                    (acc: ToolCall[], msg: ReasoningMessage) => {
-                      if (msg.role === 'tool') {
-                        acc.push({
-                          role: msg.role,
-                          content: msg.content,
-                          tool_call_id: msg.tool_call_id ?? '',
-                          tool_name: msg.tool_name ?? '',
-                          tool_args: msg.tool_args ?? {},
-                          tool_call_error: msg.tool_call_error ?? false,
-                          metrics: msg.metrics ?? { time: 0 },
-                          created_at:
-                            msg.created_at ?? Math.floor(Date.now() / 1000)
-                        })
-                      }
-                      return acc
-                    },
-                    []
-                  )
-                ]
-
-                filteredMessages.push({
-                  role: 'agent',
-                  content: (run.response.content as string) ?? '',
-                  tool_calls: toolCalls.length > 0 ? toolCalls : undefined,
-                  extra_data: run.response.extra_data,
-                  images: run.response.images,
-                  videos: run.response.videos,
-                  audio: run.response.audio,
-                  response_audio: run.response.response_audio,
-                  created_at: run.response.created_at
-                })
-              }
-              return filteredMessages
-            })
-
-            const processedMessages = messagesForPlayground.map(
-              (message: PlaygroundChatMessage) => {
-                if (Array.isArray(message.content)) {
-                  const textContent = message.content
-                    .filter((item: { type: string }) => item.type === 'text')
-                    .map((item) => item.text)
-                    .join(' ')
-
-                  return {
-                    ...message,
-                    content: textContent
-                  }
-                }
-                if (typeof message.content !== 'string') {
-                  return {
-                    ...message,
-                    content: getJsonMarkdown(message.content)
-                  }
-                }
-                return message
-              }
-            )
-
-            setMessages(processedMessages)
-            return processedMessages
-          }
-        }
+        setMessages(messages)
+        return messages
       } catch {
         return null
       }

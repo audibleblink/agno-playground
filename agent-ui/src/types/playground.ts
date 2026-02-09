@@ -62,7 +62,8 @@ export interface Model {
 }
 
 export interface Agent {
-  agent_id: string
+  id: string
+  agent_id?: string
   name: string
   description: string
   model: Model
@@ -70,15 +71,15 @@ export interface Agent {
 }
 
 export interface TeamMember {
-  agent_id?: string
-  team_id?: string
+  id: string
   name: string
   model: Model
   members?: TeamMember[]
 }
 
 export interface Team {
-  team_id: string
+  id: string
+  team_id?: string
   name: string
   description: string
   model: Model
@@ -93,6 +94,7 @@ interface MessageContext {
 }
 
 export enum RunEvent {
+  // Agent events
   RunStarted = 'RunStarted',
   RunResponse = 'RunResponse',
   RunCompleted = 'RunCompleted',
@@ -102,7 +104,17 @@ export enum RunEvent {
   ReasoningStarted = 'ReasoningStarted',
   ReasoningStep = 'ReasoningStep',
   ReasoningCompleted = 'ReasoningCompleted',
-  RunError = 'RunError'
+  RunError = 'RunError',
+  // Team events (prefixed with Team)
+  TeamRunStarted = 'TeamRunStarted',
+  TeamRunContent = 'TeamRunContent',
+  TeamRunCompleted = 'TeamRunCompleted',
+  TeamToolCallStarted = 'TeamToolCallStarted',
+  TeamToolCallCompleted = 'TeamToolCallCompleted',
+  TeamReasoningStarted = 'TeamReasoningStarted',
+  TeamReasoningStep = 'TeamReasoningStep',
+  TeamReasoningCompleted = 'TeamReasoningCompleted',
+  TeamRunError = 'TeamRunError'
 }
 export interface ResponseAudio {
   id?: string
@@ -111,6 +123,15 @@ export interface ResponseAudio {
   channels?: number
   sample_rate?: number
 }
+export interface ToolEventData {
+  tool_call_id: string
+  tool_name: string
+  tool_args?: Record<string, string>
+  tool_call_error?: boolean
+  result?: string | null
+  metrics?: { duration?: number }
+}
+
 export interface RunResponse {
   content?: string | object
   content_type: string
@@ -125,6 +146,7 @@ export interface RunResponse {
   session_id?: string
   created_at: number
   tools?: ToolCall[]
+  tool?: ToolEventData
   extra_data?: PlaygroundAgentExtraData
   images?: ImageData[]
   videos?: VideoData[]

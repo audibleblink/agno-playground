@@ -76,7 +76,7 @@ export function TeamMembers() {
           <AnimatePresence>
             {selectedTeamDetails.members.map((member, index) => (
               <motion.div
-                key={`${member.agent_id || member.team_id}-${index}`}
+                key={`${member.id}-${index}`}
                 className="flex items-center gap-3 rounded-xl border border-primary/15 bg-primaryAccent p-3 text-xs font-medium"
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
@@ -87,14 +87,14 @@ export function TeamMembers() {
                 }}
               >
                 <Icon
-                  type={member.team_id ? 'user' : 'user'}
+                  type={member.members ? 'user' : 'user'}
                   size="xs"
-                  className={member.team_id ? 'text-blue-400' : 'text-primary'}
+                  className={member.members ? 'text-blue-400' : 'text-primary'}
                 />
                 <div className="flex flex-1 flex-col gap-1">
                   <div className="text-xs font-medium uppercase text-white">
                     {member.name}
-                    {member.team_id && (
+                    {member.members && (
                       <span className="ml-1 text-xs text-muted">(Team)</span>
                     )}
                   </div>
