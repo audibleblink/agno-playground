@@ -6,7 +6,7 @@ An AI agent playground built with the [Agno](https://github.com/agno-ai/agno) fr
 
 - **Multi-Agent Teams**: Coordinate multiple AI agents to research and analyze content
 - **Vector Storage**: Persistent memory and knowledge base using LanceDB
-- **Advanced RAG**: Semantic chunking and hybrid (vector & keyword) retreival w/ reranking
+- **Advanced RAG**: Semantic chunking and hybrid (vector & keyword) retrieval w/ reranking
 - **Web UI**: Optional self-hosted React-based interface for interacting with agents
 
 ## Project Structure
@@ -18,6 +18,7 @@ agno-playground/
 │
 ├── agents/                    # AI agent implementations
 │   ├── __init__.py
+│   ├── academic_researcher.py # Academic paper research
 │   ├── article_reader.py      # Article content extraction
 │   ├── hn_researcher.py       # HackerNews research agent
 │   ├── reddit_researcher.py   # Reddit discussion analysis
@@ -25,10 +26,15 @@ agno-playground/
 │
 ├── teams/                     # Agent team configurations
 │   ├── __init__.py
-│   └── hackernews.py          # HackerNews research team
+│   ├── hackernews.py          # HackerNews research team
+│   └── research.py            # General research team
 │
 ├── models/                    # AI model configurations
 │   └── __init__.py
+│
+├── api/                       # Additional API routers
+│   ├── __init__.py
+│   └── openai_router.py       # OpenAI-compatible endpoints
 │
 ├── config/                    # Environment and configuration
 │   ├── __init__.py
@@ -71,7 +77,7 @@ This project uses [uv](https://github.com/astral-sh/uv) for dependency managemen
 4. **Install UI dependencies** (optional, for web interface):
    ```bash
    cd agent-ui
-   npm install
+   pnpm install
    ```
 
 ## Configuration
@@ -96,7 +102,7 @@ Start the FastAPI server with hot reload:
 uv run main.py
 ```
 
-The API will be available at `http://localhost:8000`
+The API will be available at `http://localhost:7777`
 
 If you have an agno account, register the endpoint with `uv run ag setup` then follow the link 
 that gets printed when you run the app. Otherwise, run the offline web ui.
@@ -107,8 +113,6 @@ In a separate terminal, start the Next.js development server:
 
 ```bash
 cd agent-ui
-npm run dev
-# or
 pnpm dev
 ```
 
@@ -124,7 +128,7 @@ export OLLAMA_API_BASE=<ollama-host:port>
 export AZURE_OPENAI_API_VERSION=<azure-version>
 ```
 
-Send OpenAI-style requests to `http://localhost:8000/v1/chat/completions` or
-`http://localhost:8000/v1/completions` and the request will be routed to the
+Send OpenAI-style requests to `http://localhost:7777/v1/chat/completions` or
+`http://localhost:7777/v1/completions` and the request will be routed to the
 appropriate Agno team (`HackerNewsTeam` or `ResearchTeam`).
 
