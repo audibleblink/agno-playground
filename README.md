@@ -94,29 +94,25 @@ vim $SSL_CERT_FILE
 
 ## Usage
 
-### Running the Backend
+This project uses [mise](https://mise.jdx.dev/) as a task runner.
 
-Start the FastAPI server with hot reload:
+### Development (Recommended)
 
-```bash
-uv run main.py
-```
-
-The API will be available at `http://localhost:7777`
-
-If you have an agno account, register the endpoint with `uv run ag setup` then follow the link 
-that gets printed when you run the app. Otherwise, run the offline web ui.
-
-### Running the Web UI
-
-In a separate terminal, start the Next.js development server:
+Start both frontend and backend together:
 
 ```bash
-cd agent-ui
-pnpm dev
+mise run dev
 ```
 
-The web interface will be available at `http://localhost:3000`
+- Backend API: `http://localhost:7777`
+- Web UI: `http://localhost:3000`
+
+### Running Services Individually
+
+```bash
+mise run backend    # Start FastAPI server (port 7777)
+mise run ui         # Start Next.js dev server (port 3000)
+```
 
 ### OpenAI-Compatible API
 
